@@ -1,12 +1,12 @@
 //! This module contains the data structure for the heatmap
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HeatmapData {
-   pub values: Vec<Vec<i32>>,
-   pub x_labels: Vec<String>,
-   pub y_labels: Vec<String>,
+    pub values: Vec<Vec<i32>>,
+    pub x_labels: Vec<String>,
+    pub y_labels: Vec<String>,
 }
 
 impl HeatmapData {

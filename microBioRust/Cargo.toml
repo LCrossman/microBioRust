@@ -20,13 +20,17 @@ repository = "https://github.com/LCrossman/microBioRust"
 [lints.rust]
 unsafe_code = "forbid"
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 paste = "1.0"
-itertools = "0.10.1"
+itertools = "0.14.0"
 protein-translate = "0.2.0"
 bio = "2.3.0"
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0.12"
 regex = "1.5"
 chrono = "0.4.38"
 clap = { version = "4.5.19", features = ["derive"] }
+
