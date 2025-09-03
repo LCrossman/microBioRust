@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400..600&display=swap');
+
+/* Light mode (scheme: default) */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #fefcfb;
+  --md-default-fg-color: #1f2128;
+  --md-primary-fg-color: #e45a28;
+  --md-accent-fg-color: #f4a63a;
+}
+
+/* Dark mode (scheme: slate) */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1f2128;
+  --md-default-fg-color: #fefcfb;
+  --md-primary-fg-color: #F4A63A;
+  --md-accent-fg-color: #E45928;
+}
+
+/* Light mode */
+[data-md-color-scheme="default"] h1,
+[data-md-color-scheme="default"] h1 strong,
+[data-md-color-scheme="default"] h2 {
+  font-family: 'Roboto Slab', sans-serif;
+  font-weight: 400 !important;
+  color: #333333 !important; /* Choose your light mode color */
+}
+
+/* Dark mode */
+[data-md-color-scheme="slate"] h1,
+[data-md-color-scheme="slate"] h1 strong,
+[data-md-color-scheme="slate"] h2 {
+  font-family: 'Roboto Slab', sans-serif;
+  font-weight: 400 !important;
+  color: #FEFCFB !important; /* Your dark mode color */
+}
+.md-typeset h1 strong {
+  font-weight: 600 !important;
+}
