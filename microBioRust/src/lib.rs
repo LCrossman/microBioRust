@@ -9,5 +9,6 @@
 //!  Additionally, you can create new features and records and save them either in genbank or gff3 format
 //!
 #![allow(non_snake_case)]
+pub mod record;
 pub mod embl;
 pub mod gbk;

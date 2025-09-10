@@ -747,24 +747,7 @@ where
      }
 }
 
-///stores a value for start or stop (end) which can be denoted as a < value or > value.
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum RangeValue {
-    Exact(u32),
-    LessThan(u32),
-    GreaterThan(u32),
-}
-
-//trait for rangevalue
-impl RangeValue {
-    pub fn get_value(&self) -> u32 {
-        match self {
-            RangeValue::Exact(value) => *value,
-            RangeValue::LessThan(value) => *value,
-            RangeValue::GreaterThan(value) => *value,
-        }
-    }
-}
+pub use crate::record::RangeValue;
 
 ///stores the details of the source features in genbank (contigs)
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -1377,6 +1360,25 @@ impl Default for Record {
      fn default() -> Self {
          Self::new()
      }
+}
+
+// Provide a type alias and conversion to a generic record to aid interoperability
+pub type GenericRecordEmbl = crate::record::GenericRecord<SourceAttributeBuilder, FeatureAttributeBuilder, SequenceAttributeBuilder>;
+
+impl From<&Record> for GenericRecordEmbl {
+    fn from(r: &Record) -> Self {
+        Self {
+            id: r.id.clone(),
+            seq: r.sequence.clone(),
+            seqid: r.id.clone(),
+            start: r.start as u32,
+            end: r.end as u32,
+            strand: r.strand,
+            source: r.source_map.clone(),
+            cds: r.cds.clone(),
+            seq_features: r.seq_features.clone(),
+        }
+    }
 }
 
 #[allow(dead_code)]
