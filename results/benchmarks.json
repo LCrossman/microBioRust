@@ -1,27 +1,27 @@
 {
     "bench_pipeline.PipelineSuite.peakmem_process_all": {
-        "code": "class PipelineSuite:\n    def peakmem_process_all(self):\n        result = microbiorust.gbk_to_faa(self.filepath)\n        for _ in result:\n          pass\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # 2. Join it with your filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "code": "class PipelineSuite:\n    def peakmem_process_all(self):\n    \n        _ = microbiorust.gbk_to_faa_count(self.filepath)\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # 2. Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
         "name": "bench_pipeline.PipelineSuite.peakmem_process_all",
         "param_names": [],
         "params": [],
         "type": "peakmemory",
         "unit": "bytes",
-        "version": "c748f41041e4324ea623bb1b0b8305aee24704135f32d8fc66f58fc35713480e"
+        "version": "2bc01aab81b57636e9d1a496a4d4c8c5679c276c8df8399d6607f93caccc652c"
     },
     "bench_pipeline.PipelineSuite.time_process_all": {
-        "code": "class PipelineSuite:\n    def time_process_all(self):\n        # This calls your function that returns Vec<String>\n       print(\"---- starting run ----\", flush=True)\n       t0 = time.time()\n       result = microbiorust.gbk_to_faa(self.filepath)\n       t1 = time.time()\n       print(f\"finished parse in {t1-t0:.4f}s\", flush=True)\n       #for _ in result:\n       #  pass\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # 2. Join it with your filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
-        "min_run_count": 1,
+        "code": "class PipelineSuite:\n    def time_process_all(self):\n        # This calls the microBioRust function that returns a count of protein fasta per file\n    \n        _ = microbiorust.gbk_to_faa_count(self.filepath)\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # 2. Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "min_run_count": 2,
         "name": "bench_pipeline.PipelineSuite.time_process_all",
-        "number": 1,
+        "number": 0,
         "param_names": [],
         "params": [],
-        "repeat": 2,
-        "rounds": 1,
+        "repeat": 0,
+        "rounds": 2,
         "sample_time": 0.01,
         "type": "time",
         "unit": "seconds",
-        "version": "cbb34e8d16e6c2cdb62801fcc2bbd36d1782cbb0e18b488c2e4d30b4b5cb8dca",
-        "warmup_time": 0
+        "version": "e39df251e3db676723d001ec967e5ab9d047c3112f8cf870155877d0f9df3f0a",
+        "warmup_time": -1
     },
     "version": 2
 }
