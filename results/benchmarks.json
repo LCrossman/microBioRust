@@ -1,0 +1,55 @@
+{
+    "bench_pipeline.PipelineSuite.peakmem_process_all": {
+        "code": "class PipelineSuite:\n    def peakmem_process_all(self):\n        \"\"\"\n        Primary benchmark: Measures peak memory usage during parsing.\n        Should remain stable or improve slightly with buffer pre-allocation.\n        \"\"\"\n        _ = microbiorust.gbk_to_faa_count(self.filepath)\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "name": "bench_pipeline.PipelineSuite.peakmem_process_all",
+        "param_names": [],
+        "params": [],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "25d5041d516ac81c536361541f1d385f3d206a228ffe22915522175508afacc4"
+    },
+    "bench_pipeline.PipelineSuite.time_process_all": {
+        "code": "class PipelineSuite:\n    def time_process_all(self):\n        \"\"\"\n        Primary benchmark: Measures parsing speed for GenBank to protein FASTA conversion.\n        This is the key metric that should improve 20-40% with regex optimizations.\n        \"\"\"\n        _ = microbiorust.gbk_to_faa_count(self.filepath)\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "min_run_count": 2,
+        "name": "bench_pipeline.PipelineSuite.time_process_all",
+        "number": 0,
+        "param_names": [],
+        "params": [],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "c57803a4ba63ecc9d9d09eddc8cec9cd903ac7719ed2965b9adb188e87c3a458",
+        "warmup_time": -1
+    },
+    "bench_pipeline.PipelineSuite.time_process_all_iterations": {
+        "code": "class PipelineSuite:\n    def time_process_all_iterations(self):\n        \"\"\"\n        Measures sustained parsing performance over 5 iterations.\n        Tests regex caching effectiveness and memory stability.\n        \"\"\"\n        for _ in range(5):\n            _ = microbiorust.gbk_to_faa_count(self.filepath)\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "min_run_count": 2,
+        "name": "bench_pipeline.PipelineSuite.time_process_all_iterations",
+        "number": 0,
+        "param_names": [],
+        "params": [],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "8a82fec19353795736c45897120b494100b8a4e8ad5973bd4e042a740ec74e59",
+        "warmup_time": -1
+    },
+    "bench_pipeline.PipelineSuite.track_parsing_latency": {
+        "code": "class PipelineSuite:\n    def track_parsing_latency(self):\n        \"\"\"\n        Track metric: Records single-pass parsing latency.\n        Useful for trending analysis over time.\n        \"\"\"\n        start = time.perf_counter()\n        _ = microbiorust.gbk_to_faa_count(self.filepath)\n        end = time.perf_counter()\n        return end - start\n\n    def setup(self):\n        bench_dir = os.path.dirname(__file__)\n    \n        # Join it with the test filename\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # Check if it exists just to be safe (helps debugging)\n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Could not find benchmark file at: {self.filepath}\")",
+        "name": "bench_pipeline.PipelineSuite.track_parsing_latency",
+        "param_names": [],
+        "params": [],
+        "timeout": 300,
+        "type": "track",
+        "unit": "unit",
+        "version": "6e06100fa42928b33e5493bc864b63d688d497c9fb64d5ec0c47dbe307eecbe2"
+    },
+    "version": 2
+}
