@@ -1,1 +1,1 @@
-{"regressions": []}
+{"regressions": [["bench_pipeline.PipelineSuite.time_process_all", "graphs/branch-main/machine-github-runner/python-3.12/bench_pipeline.PipelineSuite.time_process_all.json", {}, null, 0.08110741999999505, 0.0770373080000013, [[null, 254, 0.0770373080000013, 0.08110741999999505]]]]}
