@@ -1,6 +1,6 @@
 {
     "bench_pipeline.PipelineSuite.peakmem_process_all": {
-        "code": "class PipelineSuite:\n    def peakmem_process_all(self, engine, context):\n        \"\"\"Measures maximum resident set size (RAM).\"\"\"\n        self._run_logic(engine, context)\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
+        "code": "class PipelineSuite:\n    def peakmem_process_all(self, engine, context):\n        \"\"\"Measures maximum resident set size (RAM).\"\"\"\n        self._run_once(engine, context)\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
         "name": "bench_pipeline.PipelineSuite.peakmem_process_all",
         "param_names": [
             "engine",
@@ -19,10 +19,10 @@
         "timeout": 300,
         "type": "peakmemory",
         "unit": "bytes",
-        "version": "873522a4606ae3c32ca6367ea3babe361a6cc5f138ed1001e86caee07719b53b"
+        "version": "36078c27c58a9f59757961d4a7c9c3b9e50c2108ce85f88b25007f9c65043450"
     },
     "bench_pipeline.PipelineSuite.time_process_all": {
-        "code": "class PipelineSuite:\n    def time_process_all(self, engine, context):\n        \"\"\"Measures parsing speed (seconds).\"\"\"\n        self._run_logic(engine, context)\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
+        "code": "class PipelineSuite:\n    def time_process_all(self, engine, context):\n        \"\"\"Measures parsing speed (seconds).\"\"\"\n        self._run_once(engine, context)\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
         "min_run_count": 2,
         "name": "bench_pipeline.PipelineSuite.time_process_all",
         "number": 0,
@@ -46,11 +46,11 @@
         "timeout": 300,
         "type": "time",
         "unit": "seconds",
-        "version": "d715bed031b1f651a953a4159692f7755890fa8f363087f5f4b55ca974d92855",
+        "version": "aa86255afc3e31045d4ca057d629ea302358f79157c77ae82c18c287f6275e0c",
         "warmup_time": -1
     },
     "bench_pipeline.PipelineSuite.track_energy": {
-        "code": "class PipelineSuite:\n    def track_energy(self, engine, context):\n        \"\"\"\n        Returns energy consumed (Joules) for this engine/context using CodeCarbon.\n        ASV can plot Rust vs Python separately.\n        \"\"\"\n        self._run_logic(engine, context)\n        return self._energy_joules[f\"{engine}_{context}\"]\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
+        "code": "class PipelineSuite:\n    def track_energy(self, engine, context):\n        \"\"\"\n        Routes execution based on engine/context and tracks energy with CodeCarbon.\n        Stores last measured energy per engine in self._energy_joules.\n        \"\"\"\n        os.environ[\"CODECARBON_CARBON_INTENSITY\"] = \"475\"\n        tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level=\"CRITICAL\", country_iso_code=\"USA\")\n        tracker.start()\n        iterations = 500 if engine == 'rust' else 50\n        result = None\n        try:\n           self._run_repeatedly(engine, context, iterations)\n        finally:\n            tracker.stop()\n    \n        energy_kwh = getattr(tracker, \"total_energy\", 0)\n        # Store energy per engine in Joules\n        return (energy_kwh * 3_600_000)/iterations  # Joules/iterations\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
         "name": "bench_pipeline.PipelineSuite.track_energy",
         "param_names": [
             "engine",
@@ -69,10 +69,10 @@
         "timeout": 300,
         "type": "track",
         "unit": "J",
-        "version": "ac379b92e3c40e093884ece5d0e8fe34ff7ff689fb44611ea18b7f81c7a59163"
+        "version": "55ed0e53801a48fd0b9bb7c8d7f6db116e1fd8c5105e0fe5ec2c327906b74ef9"
     },
     "bench_pipeline.PipelineSuite.track_parsing_latency": {
-        "code": "class PipelineSuite:\n    def track_parsing_latency(self, engine, context):\n        \"\"\"Records single-pass parsing latency (seconds).\"\"\"\n        start = time.perf_counter()\n        self._run_logic(engine, context)\n        end = time.perf_counter()\n        return end - start\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
+        "code": "class PipelineSuite:\n    def track_parsing_latency(self, engine, context):\n        \"\"\"Records single-pass parsing latency (seconds).\"\"\"\n        start = time.perf_counter()\n        self._run_once(engine, context)\n        end = time.perf_counter()\n        return end - start\n\n    def setup(self, engine, context):\n        bench_dir = os.path.dirname(__file__)\n        self.filepath = os.path.join(bench_dir, \"Rhiz3841.gbk.gb\")\n    \n        # CLI scripts for pipeline mode\n        self.rust_cli = os.path.join(bench_dir, \"rust_via_python_countgbk2faa.py\")\n        self.python_cli = os.path.join(bench_dir, \"bp_equivalent_gbktofaacount.py\")\n    \n        if not os.path.exists(self.filepath):\n            raise FileNotFoundError(f\"Missing benchmark file: {self.filepath}\")\n    \n        # Initialize energy dictionary if not already present\n        if not hasattr(self, \"_energy_joules\"):\n            self._energy_joules = {}",
         "name": "bench_pipeline.PipelineSuite.track_parsing_latency",
         "param_names": [
             "engine",
@@ -91,7 +91,7 @@
         "timeout": 300,
         "type": "track",
         "unit": "s",
-        "version": "66ce0ec3cf156cb397fc87a1f8b0b0a146f02dacc04cd9c7bda989306f900421"
+        "version": "57c4182dc50cdb3306a452411c5dd80f878357e4a027acf350a54ce6ce9d5706"
     },
     "energy_ci.EnergyPythonCI.track_energy": {
         "code": "class EnergyPythonCI:\n    def track_energy(self):\n        path = Path(\"eco-ci-python.json\")\n        if not path.exists():\n            return None\n        return json.loads(path.read_text())[\"energy_joules\"]",
