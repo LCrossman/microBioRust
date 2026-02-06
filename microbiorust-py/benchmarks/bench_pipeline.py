@@ -73,6 +73,7 @@ class PipelineSuite:
         """
         is_ci = os.getenv('CI') or os.getenv('GITHUB_ACTIONS')
         iterations = 500 if engine == 'rust' else 50
+        energy_kwh = None
         start_cpu = time.process_time()
         start_wall = time.perf_counter()
         os.environ["CODECARBON_CARBON_INTENSITY"] = "475"
