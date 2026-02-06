@@ -92,7 +92,7 @@ class PipelineSuite:
                 pass
             # Store energy per engine in Joules
         else:
-            self.run_repeatedly(engine, context, iterations)
+            self._run_repeatedly(engine, context, iterations)
         cpu_time = time.process_time() - start_cpu
         wall_time = time.perf_counter() - start_wall
         
