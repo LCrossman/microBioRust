@@ -90,7 +90,7 @@ class PipelineSuite:
 
               energy_kwh = getattr(tracker, "total_energy", 0)
             except Exception:
-                pass
+                energy_kwh = 0
             # Store energy per engine in Joules
         else:
             self._run_repeatedly(engine, context, iterations)
@@ -109,6 +109,7 @@ class PipelineSuite:
             
             # Energy in kWh
             energy_kwh = (avg_power_w * wall_time / 3600) / 1000
+            print("energy kwh is ", energy_kwh)
         
         # Convert to Joules per iteration
         energy_joules_per_iteration = (energy_kwh * 3_600_000) / iterations
