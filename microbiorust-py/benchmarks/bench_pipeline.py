@@ -72,6 +72,7 @@ class PipelineSuite:
         Stores last measured energy per engine in self._energy_joules.
         """
         is_ci = os.getenv('CI') or os.getenv('GITHUB_ACTIONS')
+        iterations = 500 if engine == 'rust' else 50
         start_cpu = time.process_time()
         start_wall = time.perf_counter()
         os.environ["CODECARBON_CARBON_INTENSITY"] = "475"
@@ -80,7 +81,7 @@ class PipelineSuite:
               from codecarbon import OfflineEmissionsTracker
               tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level="CRITICAL", country_iso_code="USA")
               tracker.start()
-              iterations = 500 if engine == 'rust' else 50
+              
               result = None
               try:
                    self._run_repeatedly(engine, context, iterations)
