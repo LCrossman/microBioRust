@@ -1,1 +1,1 @@
-{"regressions": [["bench_pipeline.PipelineSuite.time_process_all('rust', 'pipeline')", "graphs/biopython/branch-main/codecarbon/machine-github-runner/maturin/python-3.12/bench_pipeline.PipelineSuite.time_process_all.json", {}, 1, 0.11856600300001219, 0.11038159449998375, [[334, 340, 0.11038159449998375, 0.11554724399999827]]]]}
+{"regressions": []}

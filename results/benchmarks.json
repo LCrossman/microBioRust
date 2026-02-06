@@ -93,23 +93,5 @@
         "unit": "s",
         "version": "57c4182dc50cdb3306a452411c5dd80f878357e4a027acf350a54ce6ce9d5706"
     },
-    "energy_ci.EnergyPythonCI.track_energy": {
-        "code": "class EnergyPythonCI:\n    def track_energy(self):\n        path = Path(\"eco-ci-python.json\")\n        if not path.exists():\n            return None\n        return json.loads(path.read_text())[\"energy_joules\"]",
-        "name": "energy_ci.EnergyPythonCI.track_energy",
-        "param_names": [],
-        "params": [],
-        "type": "track",
-        "unit": "J",
-        "version": "1"
-    },
-    "energy_ci.EnergyRustCI.track_energy": {
-        "code": "class EnergyRustCI:\n    def track_energy(self):\n        path = Path(\"eco-ci-rust.json\")\n        if not path.exists():\n            return None  # ASV will mark as missing locally\n        return json.loads(path.read_text())[\"energy_joules\"]",
-        "name": "energy_ci.EnergyRustCI.track_energy",
-        "param_names": [],
-        "params": [],
-        "type": "track",
-        "unit": "J",
-        "version": "1"
-    },
     "version": 2
 }
