@@ -3,7 +3,7 @@ import time
 import subprocess
 from Bio import SeqIO
 from microbiorust import gbk
-from codecarbon import OfflineEmissionsTracker
+
 
 #warnings.simplefilter('ignore', BioPythonWarning)
 
@@ -71,19 +71,48 @@ class PipelineSuite:
         Routes execution based on engine/context and tracks energy with CodeCarbon.
         Stores last measured energy per engine in self._energy_joules.
         """
+        is_ci = os.getenv('CI') or os.getenv('GITHUB_ACTIONS')
+        start_cpu = time.process_time()
+        start_wall = time.perf_counter()
         os.environ["CODECARBON_CARBON_INTENSITY"] = "475"
-        tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level="CRITICAL", country_iso_code="USA")
-        tracker.start()
-        iterations = 500 if engine == 'rust' else 50
-        result = None
-        try:
-           self._run_repeatedly(engine, context, iterations)
-        finally:
-            tracker.stop()
+        if not is_ci:
+            try:
+              from codecarbon import OfflineEmissionsTracker
+              tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level="CRITICAL", country_iso_code="USA")
+              tracker.start()
+              iterations = 500 if engine == 'rust' else 50
+              result = None
+              try:
+                   self._run_repeatedly(engine, context, iterations)
+              finally:
+                   tracker.stop()
 
-        energy_kwh = getattr(tracker, "total_energy", 0)
-        # Store energy per engine in Joules
-        return (energy_kwh * 3_600_000)/iterations  # Joules/iterations
+              energy_kwh = getattr(tracker, "total_energy", 0)
+            except Exception:
+                pass
+            # Store energy per engine in Joules
+        else:
+            self.run_repeatedly(engine, context, iterations)
+        cpu_time = time.process_time() - start_cpu
+        wall_time = time.perf_counter() - start_wall
+        
+        # Use CPU-based estimation if CodeCarbon didn't work or returned 0
+        if energy_kwh == 0 or energy_kwh is None:
+            # CPU utilization factor (how much of wall time was CPU work)
+            cpu_utilization = min(cpu_time / wall_time, 1.0) if wall_time > 0 else 1.0
+            
+            # Power estimates for GitHub Actions runner (2-core VM)
+            base_power_w = 10   # System idle power
+            cpu_power_w = 30 * cpu_utilization  # CPU power under load
+            avg_power_w = base_power_w + cpu_power_w
+            
+            # Energy in kWh
+            energy_kwh = (avg_power_w * wall_time / 3600) / 1000
+        
+        # Convert to Joules per iteration
+        energy_joules_per_iteration = (energy_kwh * 3_600_000) / iterations
+        
+        return energy_joules_per_iteration
     track_energy.unit = "J"
 
     # --- 1. PRIMARY TIME BENCHMARK (ASV automatic) ---
