@@ -43,16 +43,17 @@ class PipelineSuite:
             if engine == 'rust':
                 return gbk.gbk_to_faa_count(self.filepath)
             else:
-                count = 0
-                for record in SeqIO.parse(self.filepath, "genbank"):
-                    genome_seq = record.seq
-                    for feature in record.features:
-                        if feature.type == "CDS":
-                            parts = getattr(feature.location, 'parts', [feature.location])
-                            for part in parts:
-                                _ = str(part.extract(genome_seq).translate(table="standard")).split('*')[0]
+             count = 0
+            for record in SeqIO.parse(self.filepath, "genbank"):
+                genome_seq = record.seq
+                for feature in record.features:
+                    if feature.type == "CDS":
+                        parts = getattr(feature.location, 'parts', [feature.location])
+                        for part in parts:
+                            #translate, then convert to string
+                            _ = str(part.extract(genome_seq).translate(table=11)).split('*')[0]
                             count += 1
-                return count
+            return count
         else: # pipeline context
             cli_cmd = self.rust_cli if engine == 'rust' else self.python_cli
             return subprocess.run(
