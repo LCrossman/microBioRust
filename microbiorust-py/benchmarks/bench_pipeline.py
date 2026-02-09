@@ -45,9 +45,12 @@ class PipelineSuite:
             else:
                 count = 0
                 for record in SeqIO.parse(self.filepath, "genbank"):
+                    genome_seq = record.seq
                     for feature in record.features:
                         if feature.type == "CDS":
-                            _ = feature.extract(record.seq).translate()
+                            parts = getattr(feature.location, 'parts', [feature.location])
+                            for part in parts:
+                                _ = str(part.extract(genome_seq).translate(table="standard")).split('*')[0]
                             count += 1
                 return count
         else: # pipeline context
