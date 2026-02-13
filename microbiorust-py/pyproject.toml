@@ -10,12 +10,13 @@ dynamic = ["version"]
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
-    "Programming Language :: Python3",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
 ]
 dependencies = []
  
