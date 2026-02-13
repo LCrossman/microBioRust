@@ -1,0 +1,81 @@
+LOCUS       NC_000913              913 bp    DNA     linear CON 01-Sep-2025
+DEFINITION  Escherichia coli
+ACCESSION   NC_000913
+KEYWORDS    .
+SOURCE      Escherichia coli str. K-12 substr. MG1655
+  ORGANISM  Escherichia coli str. K-12 substr. MG1655
+            Bacteria; Pseudomonadati; Pseudomonadota; Gammaproteobacteria;
+            Enterobacterales; Enterobacteriaceae; Escherichia.
+FEATURES             Location/Qualifiers
+     source          <1..>913
+                     /id="source_1"
+                     /organism="Escherichia coli str. K-12 substr. MG1655"
+                     /mol_type="genomic DNA"
+                     /strain="K-12"
+                     /sub_strain="MG1655"
+                     /db_xref="taxon:511145"
+     source          complement(1..913)
+     gene            complement(10..363)
+                     /gene="rplR"
+                     /locus_tag="b3304"
+                     /gene_synonym="ECK3291"
+                     /db_xref="ASAP:ABE-0010825"
+                     /db_xref="ECOCYC:EG10879"
+                     /db_xref="GeneID:947804"
+     CDS             complement(10..363)
+                     /gene="rplR"
+                     /locus_tag="b3304"
+                     /gene_synonym="ECK3291"
+                     /codon_start=1
+                     /transl_table=11
+                     /product="50S ribosomal subunit protein L18"
+                     /protein_id="NP_417763.1"
+                     /db_xref="UniProtKB/Swiss-Prot:P0C018"
+                     /db_xref="ASAP:ABE-0010825"
+                     /db_xref="ECOCYC:EG10879"
+                     /db_xref="GeneID:947804"
+                     /translation="MDKKSARIRRATRARRKLQELGATRLVVHRTPRHIYAQVIAPNG
+                     SEVLVAASTVEKAIAEQLKYTGNKDAAAAVGKAVAERALEKGIKDVSFDRSGFQYHGR
+                     VQALADAAREAGLQF"
+     gene            complement(373..906)
+                     /gene="rplF"
+                     /locus_tag="b3305"
+                     /gene_synonym="ECK3292"
+                     /db_xref="ASAP:ABE-0010827"
+                     /db_xref="ECOCYC:EG10869"
+                     /db_xref="GeneID:947803"
+     CDS             complement(373..906)
+                     /gene="rplF"
+                     /locus_tag="b3305"
+                     /gene_synonym="ECK3292"
+                     /codon_start=1
+                     /transl_table=11
+                     /product="50S ribosomal subunit protein L6"
+                     /protein_id="NP_417764.1"
+                     /db_xref="UniProtKB/Swiss-Prot:P0AG55"
+                     /db_xref="ASAP:ABE-0010827"
+                     /db_xref="ECOCYC:EG10869"
+                     /db_xref="GeneID:947803"
+                     /translation="MSRVAKAPVVVPAGVDVKINGQVITIKGKNGELTRTLNDAVEVK
+                     HADNTLTFGPRDGYADGWAQAGTARALLNSMVIGVTEGFTKKLQLVGVGYRAAVKGNV
+                     INLSLGFSHPVDHQLPAGITAECPTQTEIVLKGADKQVIGQVAADLRAYRRPEPYKGK
+                     GVRYADEVVRTKEAKKK"
+BASE COUNT      214 a    256 c    223 g    220 t
+ORIGIN
+        1 acctctacct tagaactgaa ggccagcttc acgggcagca tctgccagtg cctggacacg
+       61 accatgatat tggaacccgg aacggtcaaa ggatacatct ttgatgcctt tttccagagc
+      121 gcgttcagcg acagctttac ccacagctgc agccgcgtct ttgttaccgg tgtacttcag
+      181 ttgttcagcg atagcttttt ctacagtaga agcagctacc agaacttcag aaccgttcgg
+      241 tgcaattacc tgtgcgtaaa tgtgacgcgg ggtacgatgt accaccaggc gagttgcgcc
+      301 cagctcctgg agcttgcggc gtgcgcgggt cgcacgacgg atacgagcag atttcttatc
+      361 catagtgtta ccttacttct tcttagcctc tttggtacgc acgacttcgt cggcgtaacg
+      421 aacacccttg cctttataag gctcaggacg acggtaggcg cgcagatccg ctgcaacctg
+      481 gccgatcacc tgcttatcag cgcctttcag cacgatttca gtctgagtcg gacattcagc
+      541 agtgataccc gcaggcagct gatggtcaac aggatgagag aaacccagag acaggttaat
+      601 cacattgcct ttaaccgctg cacggtaacc tacaccaacc agctgcagct tcttagtgaa
+      661 gccttcggta acaccgataa ccattgagtt cagcagggca cgcgcggtac cagcctgtgc
+      721 ccaaccgtct gcgtaaccat cacgcggacc gaaggtcagg gtattatctg catgtttaac
+      781 ttcaacagca tcgttgagag tacgagtcag ctcgccgttt ttacctttga tcgtaataac
+      841 ctgaccgttg atttttacgt caacgccggc aggaacaacg accggtgctt tagcaacacg
+      901 agacattttt tcc
+//
