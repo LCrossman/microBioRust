@@ -14,8 +14,10 @@ microBioRust is the core Rust Crate
 - Output to GFF, FAA, and FFN  
 - Accurate feature extraction and translation  
 - Seamless Python API for easy integration into existing pipelines  
-- Built with Rust for safety and performance  
-
+- Built with Rust for safety and performance
+- **Fast parsers** for BLAST in XML and tabular formats
+- **Fast parser** for MSA alignments, subset, get_consensus
+- Sequence metrics: hydrophobicity,amino_counts,amino_percentage
 ---
 
 ## Installation
