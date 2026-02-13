@@ -14,7 +14,7 @@ categories = [
 ]
 readme = "README.md"
 authors = ["Lisa Crossman and microBioRust community"]
-exclude = [".git", ".gitignore", "tests/data/"]
+exclude = [".git", ".gitignore", ".dribble.example.embl", "tests/data/"]
 repository = "https://github.com/microBioRust/microBioRust"
 documentation = "https://microbiorust.github.io/docs/"
 
