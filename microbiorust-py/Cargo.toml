@@ -22,7 +22,7 @@ version = "0.25.0"
 features = ["extension-module", "abi3-py310"]
 
 [features]
-default = ["extension-module"]
+default = []
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
