@@ -8,7 +8,7 @@ license = "MIT"
 keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
 description = "Python bindings for microBioRust Microbiology friendly bioinformatics Rust functions"
 categories = ["science::bioinformatics::sequence-analysis", "science::bioinformatics::genomics", "science::bioinformatics","science","data-structures"]
-exclude = [".git",".gitignore"]
+exclude = [".git",".gitignore","config.toml","K12_ribo.gbk","Rhiz3841.gbk.gb","Rhiz3841.gbk.gb_out.faa","rust_via_python_countgbk2faa.py","rust_via_python_gbk2faa.py","asv.conf.json","benchmarks/"]
 repository = "https://github.com/microBioRust/microBioRust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
