@@ -27,8 +27,6 @@ classifiers = [
 Homepage = "https://microbiorust.github.io/docs/"
 Repository = "https://github.com/microBioRust/microBioRust"
 "Bug Tracker" = "https://github.com/microBioRust/microBioRust/issues"
-
-dependencies = []
  
 [tool.maturin]
 manifest-path = "Cargo.toml"
