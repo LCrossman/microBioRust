@@ -1,13 +1,18 @@
 [build-system]
-# This tells pip: "Use Maturin to build this, not setuptools"
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "microbiorust"
 dynamic = ["version"]
-# Valid python versions
+#valid python versions
 requires-python = ">=3.10"
+readme = "README.md"
+authors = [
+    { name = "LCrossman" },
+    { name = "microBioRust Community" }
+]
+description = "Python bindings for microbiorust, Microbiology friendly bioinformatics functions"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: 3",
@@ -18,6 +23,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Development Status :: 3 - Alpha",
 ]
+[project.urls]
+Homepage = "https://microbiorust.github.io/docs/"
+Repository = "https://github.com/microBioRust/microBioRust"
+"Bug Tracker" = "https://github.com/microBioRust/microBioRust/issues"
+
 dependencies = []
  
 [tool.maturin]
