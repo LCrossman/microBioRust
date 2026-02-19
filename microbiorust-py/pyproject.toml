@@ -1,25 +1,35 @@
 [build-system]
-# This tells pip: "Use Maturin to build this, not setuptools"
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "microbiorust-py"
-version = "0.1.2"
-# Valid python versions
-requires-python = ">=3.10,<3.14"
+name = "microbiorust"
+dynamic = ["version"]
+#valid python versions
+requires-python = ">=3.10"
+readme = "README.md"
+authors = [
+    { name = "LCrossman" },
+    { name = "microBioRust Community" }
+]
+description = "Python bindings for microbiorust, Microbiology friendly bioinformatics functions"
 classifiers = [
     "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
 ]
-# If you have runtime python dependencies (e.g. Biopython), list them here.
-# For benchmarking pure Rust speed, usually keep this empty.
-dependencies = []
+[project.urls]
+Homepage = "https://microbiorust.github.io/docs/"
+Repository = "https://github.com/microBioRust/microBioRust"
+"Bug Tracker" = "https://github.com/microBioRust/microBioRust/issues"
  
-# This tells Python to look at Cargo.toml for the version number.
 [tool.maturin]
 manifest-path = "Cargo.toml"
 bindings = "pyo3"
 module-name = "microbiorust"
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module","pyo3/abi3-py310"]

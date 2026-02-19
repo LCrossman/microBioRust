@@ -1,21 +1,21 @@
 [package]
 name = "microBioRust-seqmetrics"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 license = "MIT"
 keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
 description = "Microbiology friendly bioinformatics Rust functions"
 categories = ["science::bioinformatics::sequence-analysis", "science::bioinformatics::genomics", "science::bioinformatics","science","data-structures"]
 readme = "README.md"
-exclude = [".git",".gitignore"]
-repository = "https://github.com/LCrossman/microBioRust"
+exclude = [".git",".gitignore","K12_ribo.gbk"]
+repository = "https://github.com/microBioRust/microBioRust/seqmetrics"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lints.rust]
 unsafe_code = "forbid"
 
 [dependencies]
-microBioRust = "0.1.2"
+microBioRust = "0.1.3"
 bio = "2.3.0"
 anyhow = "1.0.93"
 clap = { version = "4.5.19", features = ["derive"] }

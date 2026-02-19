@@ -1,40 +1,35 @@
+[workspace]
+
 [package]
 name = "microbiorust-py"
-version = "0.1.1"
+version = "0.1.5"
 edition = "2021"
 license = "MIT"
 keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
-description = "Microbiology friendly bioinformatics Rust functions"
+description = "Python bindings for microBioRust Microbiology friendly bioinformatics Rust functions"
 categories = ["science::bioinformatics::sequence-analysis", "science::bioinformatics::genomics", "science::bioinformatics","science","data-structures"]
-exclude = [".git",".gitignore"]
-repository = "https://github.com/LCrossman/microBioRust"
+exclude = [".git",".gitignore","config.toml","K12_ribo.gbk","Rhiz3841.gbk.gb","Rhiz3841.gbk.gb_out.faa","rust_via_python_countgbk2faa.py","rust_via_python_gbk2faa.py","asv.conf.json","benchmarks/"]
+repository = "https://github.com/microBioRust/microBioRust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lints.rust]
 unsafe_code = "forbid"
 
-[target.aarch64-apple-darwin]
-# This 'Wl,-rpath' flag embeds the directory into the binary metadata
-rustflags = ["-C", "link-arg=-Wl,-rpath,/path/from/sysconfig/LIBDIR"]
-
-[target.x86_64-apple-apple-darwin]
-rustflags = ["-C", "link-arg=-Wl,-rpath,/path/from/sysconfig/LIBDIR"]
-
 [lib]
 name = "microbiorust"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies.pyo3]
 version = "0.25.0" 
-features = ["auto-initialize", "abi3-py311"]
+features = ["extension-module", "abi3-py310"]
 
 [features]
-default = []
+default = ["extension-module"]
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
-microBioRust = { path = "../microBioRust" }
-microBioRust-seqmetrics = { git = "https://github.com/LCrossman/microBioRust", branch = "main" }
+microBioRust = "0.1.3"
+microBioRust-seqmetrics = "0.1.3"
 pythonize = "0.25"
 tokio = { version = "1.49.0", features = ["full"] }
 

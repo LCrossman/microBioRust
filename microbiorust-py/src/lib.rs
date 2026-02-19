@@ -451,6 +451,7 @@ mod tests {
     #[test]
     #[allow(unused_imports)]
     fn test_functions_are_registered() {
+        pyo3::prepare_freethreaded_python();
         Python::with_gil(|py| {
             let m = PyModule::new(py, "microbiorust").unwrap();
             microbiorust(py, &m).unwrap();
