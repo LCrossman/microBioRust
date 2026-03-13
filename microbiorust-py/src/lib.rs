@@ -39,6 +39,8 @@
 #[macro_use]
 mod macros;
 
+use pyo3::exceptions::PyKeyError;
+use pyo3::types::PyList;
 use pyo3::{
    prelude::*,
    types::PyModule,
@@ -63,18 +65,57 @@ use microBioRust_seqmetrics::metrics::amino_counts as rust_amino_counts;
 use microBioRust_seqmetrics::metrics::amino_percentage as rust_amino_percentage;
 
 
-#[pyfunction]
-pub fn gbk_to_faa(filename: &str) -> PyResult<Vec<String>> {  
-    let records = genbank!(&filename);
-    let mut result = Vec::new();
-    for record in records {
-        for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
-                result.push(format!(">{}|{}\n{}", &record.id, &k, seq));
-            }
+#[pyclass]
+struct Faa {
+    records: HashMap<String, Record>,
+}
+
+/// A wrapper around the Record type to expose it to Python
+#[pyclass(name = "Record")]
+struct PyRecord(Record);
+
+#[pymethods]
+impl Faa {
+    fn __repr__(&self) -> String {
+        format!("Faa({} records)", self.records.len())
+    }
+
+    fn __getitem__(&self, record_id: &str) -> PyResult<PyRecord> {
+        match self.records.get(record_id) {
+            Some(record) => Ok(PyRecord(record.clone())),
+            None => Err(PyKeyError::new_err(record_id.to_string())),
         }
     }
-    Ok(result)
+
+    fn keys<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        PyList::new(py, self.records.keys())
+    }
+}
+
+#[pymethods]
+impl PyRecord {
+    fn __repr__(&self) -> String {
+        format!("Record(id: {}, sequence length: {})", self.0.id, self.0.sequence.len())
+    }
+    
+    fn id(&self) -> &str {
+        &self.0.id
+    }
+
+    fn get_sequence(&self) -> String {
+        self.0.sequence.clone()
+    }
+
+    fn get_attributes(&self) -> HashMap<String, String> {
+        self.0.cds.attributes.iter().map(|(k, v)| (k.clone(), format!("{v:?}"))).collect()
+    }
+}
+
+#[pyfunction]
+pub fn gbk_to_faa(filename: &str) -> PyResult<Faa> {
+    let records = genbank!(&filename);
+    let records = records.into_iter().map(|r| (r.id.clone(), r)).collect();
+    Ok(Faa { records })
 }
 
 #[pyfunction]
