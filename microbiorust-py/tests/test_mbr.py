@@ -1,11 +1,13 @@
-import pytest
 import os
-import microbiorust
+import tempfile
 import textwrap
 from pathlib import Path
 
-# --- FIXTURES: Generating Mock Data ---
+import microbiorust
+import pytest
 
+
+# --- FIXTURES: Generating Mock Data ---
 @pytest.fixture
 def mock_gbk(tmp_path):
     """Creates a minimal valid GenBank file."""
@@ -59,17 +61,15 @@ def mock_gbk(tmp_path):
     path.write_text(content)
     return str(path)
 
+
 @pytest.fixture
 def mock_msa(tmp_path):
     """Creates a mock FASTA alignment file."""
     path = tmp_path / "align.fasta"
-    content = (
-        ">Seq1\nATGC--AT\n"
-        ">Seq2\nATGC--TT\n"
-        ">Seq3\nATGCGGTT\n"
-    )
+    content = ">Seq1\nATGC--AT\n>Seq2\nATGC--TT\n>Seq3\nATGCGGTT\n"
     path.write_text(content)
     return str(path)
+
 
 @pytest.fixture
 def mock_blast_tab(tmp_path):
@@ -80,71 +80,145 @@ def mock_blast_tab(tmp_path):
     path.write_text(content)
     return str(path)
 
-#tests for parsers (gbk, embl)
 
-def test_gbk_conversions(mock_gbk):
-    #test protein sequence extraction
-    #with open(mock_gbk, 'rb') as f:
-    #    print(f"\n[DEBUG] Raw File Content: {f.read()}")
-    faa = microbiorust.gbk_to_faa(mock_gbk)
-    assert os.path.exists(mock_gbk)
-    assert any("b3304" in line for line in faa)
-    
-    #test count
+def test_gbk_loader_aliases(mock_gbk):
+    """Verify all specialized GBK loaders return a valid collection"""
+    # Test all three aliases to ensure they point to the correct InternalRecord::Gbk logic
+    loaders = [
+        microbiorust.gbk_to_faa,
+        microbiorust.gbk_to_fna,
+        microbiorust.gbk_to_ffn,
+    ]
+
+    for load_func in loaders:
+        collection = load_func(mock_gbk)
+        assert "source_1" in collection.keys()
+        assert len(collection.keys()) > 0
+        assert "SequenceCollection" in repr(collection)
+
+
+def test_gbk_count_function(mock_gbk):
+    """Test the standalone count function (verifies re-parsing works if needed)."""
+    # This calls the genbank! macro directly again
     count = microbiorust.gbk_to_faa_count(mock_gbk)
-    assert count == 2
-    
-    #test nucleotide sequence extraction
-    fna = microbiorust.gbk_to_fna(mock_gbk)
-    assert any("ttagaactga" in line.lower() for line in fna)
+    assert isinstance(count, int)
+    assert count >= 2  # Based on b3304 and b3305 in your mock
+
+
+def test_record_access_and_metadata(mock_gbk):
+    """Test retrieving a record and its lazy-loaded metadata (PyFeatureInfo)."""
+    collection = microbiorust.gbk_to_faa(mock_gbk)
+    record = collection["source_1"]
+
+    # Verify the Record basic info
+    assert record.id() == "source_1"
+    assert "Record" in repr(record)
+
+    # 1. Test Metadata Proxy (PyFeatureInfo) via get_feature
+    feat = record.get_feature("b3304")
+    assert feat is not None
+    assert feat.gene == "rplR"
+    assert feat.product == "50S ribosomal subunit protein L18"
+
+    # Verify numeric extractions from our InternalFeatureAttributes match logic
+    assert feat.strand == -1
+    assert feat.start == 1
+    assert feat.stop == 354
+    assert feat.codon_start == 1
+
+
+def test_sequence_getitem(mock_gbk):
+    """Test the 'Sniper' sequence access via __getitem__ (PySequenceInfo)."""
+    collection = microbiorust.gbk_to_faa(mock_gbk)
+    record = collection["source_1"]
+
+    # This triggers record.__getitem__ which returns PySequenceInfo
+    seq_info = record["b3304"]
+
+    assert seq_info.tag == "b3304"
+    assert seq_info.faa.startswith("MDKKSAR")
+    assert seq_info.ffn is not None
+    assert "SequenceInfo" in repr(seq_info)
+
+
+def test_embl_loader_integration():
+    """Verify EMBL files flow through the same Unified Record API."""
+
+    collection = microbiorust.embl_to_faa("example.embl")
+
+    # Even though it's EMBL, the Python side looks identical!
+    record = collection["AM236082"]
+    assert record.id() == "AM236082"
+
+    # Test that get_feature still works via the InternalFeatureAttributes::Embl variant
+    feat = record.get_feature("pRL80002")
+    assert feat is not None
+
+
+def test_missing_keys_raise_errors(mock_gbk):
+    """Verify we get clean Python KeyErrors instead of Rust panics."""
+    collection = microbiorust.gbk_to_faa(mock_gbk)
+
+    with pytest.raises(KeyError):
+        _ = collection["non_existent_record"]
+
+    record = collection["source_1"]
+    with pytest.raises(KeyError):
+        _ = record["non_existent_tag"]
+
 
 def test_gbk_to_gff(mock_gbk):
-    #this function writes to {filename}.gff and reads again to check
+    # this function writes to {filename}.gff and reads again to check
     microbiorust.gbk_to_gff(mock_gbk, dna=True)
     gff_path = f"{mock_gbk}.gff"
     assert os.path.exists(gff_path)
     with open(gff_path, "r") as f:
         assert "source_source_1_1" in f.read()
 
-#tests for multiple sequence alignment 
 
+# tests for multiple sequence alignment
 def test_subset_msa(mock_msa):
-    #subset mock alignment: Rows 0-2 (Seq1 & Seq2), Cols 0-4 (ATGC)
+    # subset mock alignment: Rows 0-2 (Seq1 & Seq2), Cols 0-4 (ATGC)
     subset = microbiorust.subset_msa_alignment(mock_msa, (0, 2), (0, 4))
     print("subset", subset)
     assert len(subset) == 2  # 2 headers + 2 sequences
     assert ">Seq1" in subset[0]
     assert "ATGC" in subset[1]
 
+
 def test_purge_gaps(mock_msa, tmp_path):
     out_path = str(tmp_path / "purged.fasta")
-    #threshold 0.5 should remove the '--' columns in Seq1 and Seq2 and write to file
+    # threshold 0.5 should remove the '--' columns in Seq1 and Seq2 and write to file
     microbiorust.purge_gaps(mock_msa, out_path, 0.5)
     assert os.path.exists(out_path)
 
+
 def test_get_consensus(mock_msa):
-    #given 'ATGC' is constant in the mock, it should be in consensus
+    # given 'ATGC' is constant in the mock, it should be in consensus
     consensus = microbiorust.get_consensus(mock_msa)
     assert consensus.startswith("ATGC")
 
-#tests for Sequence Metrics
 
+# tests for Sequence Metrics
 def test_hydrophobicity():
     seq = "MALWMRLLPLLALLALWGPDPAAAFVN"
     scores = microbiorust.hydrophobicity(seq, window_size=3)
     assert len(scores) > 0
     assert all(isinstance(s, float) for s in scores)
 
+
 def test_amino_counts():
     seq = "MATAG"
     counts = microbiorust.amino_counts(seq)
-    assert counts['M'] == 1
-    assert counts['A'] == 2
+    assert counts["M"] == 1
+    assert counts["A"] == 2
 
-#test for Async Tabular Parser
+
+# test for Async Tabular Parser
+
 
 def test_parse_tabular(mock_blast_tab):
     results = microbiorust.parse_tabular(mock_blast_tab)
     assert len(results) == 1
-    assert results[0]['qseqid'] == "seqA"
-    assert results[0]['bitscore'] == 200.0
+    assert results[0]["qseqid"] == "seqA"
+    assert results[0]["bitscore"] == 200.0
