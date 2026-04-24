@@ -12,9 +12,10 @@
 //!  Once developed, the PyModule can be loaded into Python and used:
 //!
 //!  from microbiorust import gbk_to_faa
+//!  #returns as a python dictionary
 //!  result = gbk_to_faa("test_input.gbk")
-//!  for r in result:
-//!      print(r)
+//!  for (id, r) in result:
+//!      print("{}\n{}\n".format(id, r))
 //!  gbk_to_gff("test_input.gbk")
 //!
 //!  Other pyfunctions that can be run include gbk_to_faa, embl_to_faa, gbk_to_gff, embl_to_gff, amino_counts, amino_percentage, hydrophobicity
@@ -172,7 +173,7 @@ impl PyFeatureInfo {
 
 #[pyclass]
 pub struct SequenceCollection {
-    pub records: HashMap<String, InternalRecord>,
+    pub records: HashMap<String, PySequenceInfo>,
 }
 
 #[pymethods]
@@ -191,6 +192,16 @@ impl SequenceCollection {
     }
     fn keys<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
         PyList::new(py, self.records.keys())
+    }
+}
+#[pyclass]
+pub struct SequenceCollectionIter {
+    inner: std::vec::IntoIter<InternalRecord>,
+}
+#[pymethods]
+impl SequenceCollectionIter {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyRecord> {
+        slf.inner.next().map(PyRecord)
     }
 }
 
@@ -350,12 +361,23 @@ impl PyRecord {
 }
 
 #[pyfunction]
-pub fn gbk_to_faa(filename: &str) -> PyResult<SequenceCollection> {
+pub fn gbk_to_fna(filename: &str) -> PyResult<SequenceCollection> {
     let raw_records = genbank!(filename);
+
     let records = raw_records
         .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Gbk(r)))
+        .map(|r| {
+            //if it's currently Vec<u8>
+            let nucleotide_seq = String::from_utf8_lossy(&r.seq).into_owned();
+
+            PySequenceInfo {
+                tag: r.id.clone(),
+                faa: None,               // We are returning FFN, so leave FAA empty
+                ffn: Some(nucleotide_seq), // FFN data goes here
+            }
+        })
         .collect();
+
     Ok(SequenceCollection { records })
 }
 
@@ -371,52 +393,100 @@ pub fn gbk_to_faa_count(filename: &str) -> PyResult<usize> {
 }
 
 #[pyfunction]
-pub fn gbk_to_fna(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = genbank!(filename);
-    let records = raw_records
-        .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Gbk(r)))
-        .collect();
-    Ok(SequenceCollection { records })
+pub fn gbk_to_faa(filename: &str) -> PyResult<SequenceCollection> {
+    let records = genbank!(filename);
+    let mut py_records = Vec::new();
+
+    for record in records {
+        for (k, _v) in &record.cds.attributes {
+            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
+                py_records.push(PySequenceInfo { 
+                    tag: format!("{}|{}", record.id, k),
+                    faa: Some(seq.to_string()),
+                    ffn: None, 
+                });
+            }
+        }
+    }
+    Ok(SequenceCollection { records: py_records })
 }
+
 
 #[pyfunction]
 pub fn gbk_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = genbank!(filename);
-    let records = raw_records
-        .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Gbk(r)))
-        .collect();
-    Ok(SequenceCollection { records })
+    let records = genbank!(filename);
+    let mut collection_vec = Vec::new();
+
+    for record in records {
+        for (k, _v) in &record.cds.attributes {
+            if let Some(seq) = record.seq_features.get_sequence_ffn(k) {
+                collection_vec.push(PySequenceInfo { 
+                    tag: format!("{}|{}", record.id, k),
+                    faa: None,
+                    ffn: Some(seq.to_string()), 
+                });
+            }
+        }
+    }
+    Ok(SequenceCollection { records: py_records })
 }
 
 #[pyfunction]
 pub fn embl_to_faa(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = embl!(filename);
-    let records = raw_records
-        .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Embl(r)))
-        .collect();
-    Ok(SequenceCollection { records })
+    let records = embl!(filename);
+    let mut py_records = Vec::new();
+
+    for record in records {
+        for (k, _v) in &record.cds.attributes {
+            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
+                collection_vec.push(PySequenceInfo { 
+                    tag: format!("{}|{}", record.id, k),
+                    faa: Some(value.to_string()),
+                    ffn: None, 
+                });
+            }
+        }
+    }
+    Ok(SequenceCollection { records: py_records })
 }
 
 #[pyfunction]
 pub fn embl_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = embl!(filename);
-    let records = raw_records
-        .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Embl(r)))
-        .collect();
-    Ok(SequenceCollection { records })
+    let records = embl!(filename);
+    let mut py_records = Vec::new();
+
+    for record in records {
+        for (k, _v) in &record.cds.attributes {
+            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
+                collection_vec.push(PySequenceInfo { 
+                    tag: format!("{}|{}", record.id, k),
+                    faa: None,
+                    ffn: Some(value.to_string()), 
+                });
+            }
+        }
+    }
+    Ok(SequenceCollection { records: py_records })
 }
 
 #[pyfunction]
 pub fn embl_to_fna(filename: &str) -> PyResult<SequenceCollection> {
     let raw_records = embl!(filename);
+
     let records = raw_records
         .into_iter()
-        .map(|r| (r.id.clone(), InternalRecord::Embl(r)))
+        .map(|r| {
+            // Use from_utf8_lossy if it's currently Vec<u8>
+            let nucleotide_seq = String::from_utf8_lossy(&r.seq).into_owned();
+
+            PySequenceInfo {
+                tag: r.id.clone(),
+                faa: None,               //we are returning FNA, so leave FAA empty
+                ffn: Some(nucleotide_seq), //fna data can go here
+            }
+        })
         .collect();
+
     Ok(SequenceCollection { records })
 }
 
