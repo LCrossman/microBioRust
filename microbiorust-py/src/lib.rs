@@ -183,7 +183,7 @@ impl SequenceCollection {
     }
     fn __getitem__(&self, record_id: &str) -> PyResult<PyRecord> {
         match self.records.get(record_id) {
-            Some(record) => Ok(PyRecord(record.clone())),
+            Some(record) => Ok(InternalRecord(record.clone())),
             None => Err(PyKeyError::new_err(format!(
                 "Record '{}' not found",
                 record_id
@@ -358,7 +358,7 @@ pub fn gbk_to_fna(filename: &str) -> PyResult<SequenceCollection> {
         .into_iter()
         .map(|r| {
             //if it's currently Vec<u8>
-            let nucleotide_seq = String::from_utf8_lossy(&r.seq).into_owned();
+            let nucleotide_seq = String::from_utf8_lossy(&r.sequence).into_owned();
 
             PySequenceInfo {
                 tag: r.id.clone(),
@@ -451,7 +451,7 @@ pub fn embl_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
                 py_records.push(PySequenceInfo { 
                     tag: format!("{}|{}", record.id, k),
                     faa: None,
-                    ffn: Some(value.to_string()), 
+                    ffn: Some(seq.to_string()), 
                 });
             }
         }
@@ -467,7 +467,7 @@ pub fn embl_to_fna(filename: &str) -> PyResult<SequenceCollection> {
         .into_iter()
         .map(|r| {
             // Use from_utf8_lossy if it's currently Vec<u8>
-            let nucleotide_seq = String::from_utf8_lossy(&r.seq).into_owned();
+            let nucleotide_seq = String::from_utf8_lossy(&r.sequence).into_owned();
 
             PySequenceInfo {
                 tag: r.id.clone(),
