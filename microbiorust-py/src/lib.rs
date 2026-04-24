@@ -194,16 +194,6 @@ impl SequenceCollection {
         PyList::new(py, self.records.keys())
     }
 }
-#[pyclass]
-pub struct SequenceCollectionIter {
-    inner: std::vec::IntoIter<InternalRecord>,
-}
-#[pymethods]
-impl SequenceCollectionIter {
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyRecord> {
-        slf.inner.next().map(PyRecord)
-    }
-}
 
 #[pyclass]
 pub struct PySequenceInfo {
@@ -415,7 +405,7 @@ pub fn gbk_to_faa(filename: &str) -> PyResult<SequenceCollection> {
 #[pyfunction]
 pub fn gbk_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
     let records = genbank!(filename);
-    let mut collection_vec = Vec::new();
+    let mut collection_vec = HashMap::new();
 
     for record in records {
         for (k, _v) in &record.cds.attributes {
@@ -428,20 +418,20 @@ pub fn gbk_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
             }
         }
     }
-    Ok(SequenceCollection { records: py_records })
+    Ok(SequenceCollection { records: collection_vec })
 }
 
 #[pyfunction]
 pub fn embl_to_faa(filename: &str) -> PyResult<SequenceCollection> {
     let records = embl!(filename);
-    let mut py_records = Vec::new();
+    let mut py_records = HashMap::new();
 
     for record in records {
         for (k, _v) in &record.cds.attributes {
             if let Some(seq) = record.seq_features.get_sequence_faa(k) {
-                collection_vec.push(PySequenceInfo { 
+                py_records.push(PySequenceInfo { 
                     tag: format!("{}|{}", record.id, k),
-                    faa: Some(value.to_string()),
+                    faa: Some(seq.to_string()),
                     ffn: None, 
                 });
             }
@@ -453,12 +443,12 @@ pub fn embl_to_faa(filename: &str) -> PyResult<SequenceCollection> {
 #[pyfunction]
 pub fn embl_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
     let records = embl!(filename);
-    let mut py_records = Vec::new();
+    let mut py_records = HashMap::new();
 
     for record in records {
         for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
-                collection_vec.push(PySequenceInfo { 
+            if let Some(seq) = record.seq_features.get_sequence_ffn(k) {
+                py_records.push(PySequenceInfo { 
                     tag: format!("{}|{}", record.id, k),
                     faa: None,
                     ffn: Some(value.to_string()), 
@@ -802,6 +792,7 @@ pub fn register_embl(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<(
     m.add_function(pyo3::wrap_pyfunction!(embl_to_gff, &m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(embl_to_faa, &m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(embl_to_fna, &m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(embl_to_ffn, &m)?)?;
     parent.add_submodule(&m)?;
     py.import("sys")?
         .getattr("modules")?
@@ -836,7 +827,7 @@ mod tests {
 
             //GBK
             let gbk = m.getattr("gbk").expect("gbk submodule missing");
-            for func in &["gbk_to_faa", "gbk_to_fna", "gbk_to_faa_count", "gbk_to_gff"] {
+            for func in &["gbk_to_faa", "gbk_to_fna", "gbk_to_ffn", "gbk_to_faa_count", "gbk_to_gff"] {
                 assert!(gbk.getattr(func).is_ok(), "Function gbk.{} not found", func);
             }
 
