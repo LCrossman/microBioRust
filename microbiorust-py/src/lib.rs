@@ -1,41 +1,83 @@
-//!  The purpose of microbiorust-py is to allow access to microBioRust
-//!  from Python - so Python InterOperability via pyo3
-//!  This is a collection of pyfunctions to build a PyModule
-//!  From Rust you can check the pyfunctions are registered to the PyModule using:
+//! # microbiorust-py
 //!
-//!  cargo test
+//! High-performance Python bindings for the `microBioRust` bioinformatics library using PyO3.
+//! This crate provides a bridge for rapid genomic data processing, sequence analysis, and
+//! alignment manipulation.
 //!
-//!  To use the PyModule in Python you will need to run
+//! ## Setup
 //!
-//!  maturin develop
+//! To install the module into your Python environment:
+//! ```bash
+//! pip install microbiorust
+//! ```
+//! If you are on Mac OSX and experience a cc linker error, please add the libpython to the LIBRARY_PATH or DYLD_LIBRARY_PATH
 //!
-//!  Once developed, the PyModule can be loaded into Python and used:
+//! ## Usage
 //!
-//!  from microbiorust import gbk_to_faa
-//!  #returns as a python dictionary
-//!  result = gbk_to_faa("test_input.gbk")
-//!  for (id, r) in result:
-//!      print("{}\n{}\n".format(id, r))
-//!  gbk_to_gff("test_input.gbk")
+//! ## Genome Data Access (conversions of filetypes)
 //!
-//!  Other pyfunctions that can be run include gbk_to_faa, embl_to_faa, gbk_to_gff, embl_to_gff, amino_counts, amino_percentage, hydrophobicity
+//! loaders like parse_gbk return a RecordCollection which has both sequences() and features()
+//! extraction functions like gbk_to_faa return a SequenceCollection containing id, faa and ffn seqs. Accessing an item
+//! yields a PyRecord, acting as a gateway to features and sequences.
 //!
-//!  from microbiorust import amino_percentage
-//!  result = amino_percentage("MSNTQKKNVPELRFPGFEGEWEEKKLGDLTTKIGSGKTPKGGSENYTNKGIPFLRSQNIRNGKLNLNDLVYISKDIDDEMKNSRTY")
+//! ```python
+//! import microbiorust
 //!
-//!  print(result)
+//! #parse records from a GenBank file
+//! collection = microbiorust.parse_gbk("input.gbk")
 //!
-//!  Example for use with a Multiple Sequence Alignment (load in fasta format)
+//! #iterating over a collection yields keys (usually as 'RecordID|LocusTag')
+//! for key in collection:
+//!     record = collection[key]
+//!     print(f"Processing {record.id()}...")
 //!
-//!  from microbiorust import load_msa_auto
+//!     # Access metadata (PyFeatureInfo)
+//!     features = record.features()
+//!     if "b3304" in features:
+//!         feat = features["b3304"]
+//!         print(f"Gene: {feat.gene}, Strand: {feat.strand}")
 //!
-//!  result = load_msa_auto("test_alignment.aln")
-//!  //to subset the alignment pass the row and column indices
-//!  sub_alignment = result.subset(10,30)
-//!  //to save to file in usual clustal type format
-//!  sub_alignment.display_interleaved()
+//!     # Access sequences (PySequenceInfo)
+//!     sequences = record.sequences()
+//!     if "b3304" in sequences:
+//!         print(f"Protein: {sequences['b3304'].faa}")
+//! ```
 //!
+//! ## sequencemetrics
 //!
+//!functions for protein and nucleotide analysis are available at the top level
+//!or via the seqmetrics submodule.
+//!
+//! ```python
+//! from microbiorust import amino_percentage
+//!
+//! seq = "MSNTQKKNVPELRFPGFEGEWEEKKLGDLTTKIGSGKTPKGGSENYTNKG"
+//! stats = amino_percentage(seq)
+//! print(f"Alanine content: {stats.get('A', 0)}%")
+//! ```
+//!
+//! ## multiple sequence alignment functionality
+//!
+//!work with Multiple Sequence Alignments (MSA) through the align submodule
+//!
+//! ```python
+//! from microbiorust.align import subset_msa_alignment, get_consensus
+//!
+//! #subset an alignment (row_start, row_end, col_start, col_end)
+//! sub_aln = subset_msa_alignment("input.fasta", 0, 10, 0, 100)
+//!
+//! #view the consensus
+//! sub_aln.get_consensus()
+//! ```
+//!
+//! ## Organization
+//!
+//! Functions are organized into the following submodules for access:
+//! - `gbk`: GenBank loaders and exporters.
+//! - `embl`: EMBL loaders and exporters.
+//! - `align`: MSA tools and gap purging.
+//! - `seqmetrics`: Hydrophobicity, amino acid counts, and percentages.
+//! - `blast`: Tabular and XML BLAST parsers.
 #![allow(unused_imports)]
 #[macro_use]
 mod macros;
@@ -71,413 +113,366 @@ pub enum InternalRecord {
     Embl(microBioRust::embl::Record),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum InternalFeatureAttributes {
-    Gbk(microBioRust::gbk::FeatureAttributes),
-    Embl(microBioRust::embl::FeatureAttributes),
-}
-
+//PyFeatureInfo contains all the feature attributes, there is an extras field for any uncaptured field (e.g. db_xref, EC)
 #[pyclass]
+#[derive(Clone)]
 pub struct PyFeatureInfo {
-    pub inner: HashSet<InternalFeatureAttributes>, //cloned once, but strings inside are not yet Python-allocated
+    #[pyo3(get)]
+    pub locus_tag: String,
+    #[pyo3(get)]
+    pub gene: Option<String>,
+    #[pyo3(get)]
+    pub product: Option<String>,
+    #[pyo3(get)]
+    pub start: Option<u32>,
+    #[pyo3(get)]
+    pub stop: Option<u32>,
+    #[pyo3(get)]
+    pub strand: Option<i8>,
+    #[pyo3(get)]
+    pub codon_start: Option<u8>,
+    #[pyo3(get)]
+    pub extras: Vec<String>,
 }
-
-#[pymethods]
 impl PyFeatureInfo {
-    //simple getter: only allocates a Python string if called
-    #[getter]
-    fn product(&self) -> Option<String> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::Product {
-                value,
-            }) => Some(value.clone()),
-            InternalFeatureAttributes::Embl(microBioRust::embl::FeatureAttributes::Product {
-                value,
-            }) => Some(value.clone()),
-            _ => None,
-        })
-    }
-    #[getter]
-    fn gene(&self) -> Option<String> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::Gene {
-                value,
-            }) => Some(value.clone()),
-            InternalFeatureAttributes::Embl(microBioRust::embl::FeatureAttributes::Gene {
-                value,
-            }) => Some(value.clone()),
-            _ => None,
-        })
-    }
-    #[getter]
-    fn codon_start(&self) -> Option<u8> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::CodonStart {
-                value,
-            }) => Some(*value),
-            InternalFeatureAttributes::Embl(
-                microBioRust::embl::FeatureAttributes::CodonStart { value },
-            ) => Some(*value),
-            _ => None,
-        })
-    }
-    #[getter]
-    fn strand(&self) -> Option<i8> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::Strand {
-                value,
-            }) => Some(*value),
-            InternalFeatureAttributes::Embl(microBioRust::embl::FeatureAttributes::Strand {
-                value,
-            }) => Some(*value),
-            _ => None,
-        })
-    }
-    #[getter]
-    fn start(&self) -> Option<u32> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::Start {
-                value,
-            }) => Some(value.get_value()),
-            InternalFeatureAttributes::Embl(microBioRust::embl::FeatureAttributes::Start {
-                value,
-            }) => Some(value.get_value()),
-            _ => None,
-        })
-    }
-    #[getter]
-    fn stop(&self) -> Option<u32> {
-        self.inner.iter().find_map(|attr| match attr {
-            InternalFeatureAttributes::Gbk(microBioRust::gbk::FeatureAttributes::Stop {
-                value,
-            }) => Some(value.get_value()),
-            InternalFeatureAttributes::Embl(microBioRust::embl::FeatureAttributes::Stop {
-                value,
-            }) => Some(value.get_value()),
-            _ => None,
-        })
-    }
-    fn __repr__(&self) -> String {
-        format!("FeatureInfo({} attributes)", self.inner.len())
-    }
-    fn __iter__(&self) -> Vec<String> {
-        self.inner
-            .iter()
-            .map(|attr| match attr {
-                InternalFeatureAttributes::Gbk(a) => format!("{:?}", a),
-                InternalFeatureAttributes::Embl(a) => format!("{:?}", a),
-            })
-            .collect()
-    }
-}
-
-#[pyclass]
-pub struct SequenceCollection {
-    pub records: HashMap<String, PySequenceInfo>,
-}
-
-#[pymethods]
-impl SequenceCollection {
-    fn __repr__(&self) -> String {
-        format!("SequenceCollection({} records)", self.records.len())
-    }
-    fn __getitem__(&self, record_id: &str) -> PyResult<PyRecord> {
-        match self.records.get(record_id) {
-            Some(record) => Ok(InternalRecord(record.clone())),
-            None => Err(PyKeyError::new_err(format!(
-                "Record '{}' not found",
-                record_id
-            ))),
+    pub fn new(id: &str) -> Self {
+        Self {
+            locus_tag: id.to_string(),
+            gene: None,
+            product: None,
+            start: None,
+            stop: None,
+            strand: None,
+            codon_start: None,
+            extras: Vec::new(),
         }
     }
-    fn keys<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
-        PyList::new(py, self.records.keys())
-    }
 }
-
-#[pyclass]
-pub struct PySequenceInfo {
-    #[pyo3(get)]
-    pub tag: String,
-    pub faa: Option<String>,
-    pub ffn: Option<String>,
-}
-
 #[pymethods]
-impl PySequenceInfo {
-    #[getter]
-    fn faa(&self) -> Option<String> {
-        self.faa.clone()
-    }
-
-    #[getter]
-    fn ffn(&self) -> Option<String> {
-        self.ffn.clone()
-    }
-
-    fn __repr__(&self) -> String {
+impl PyFeatureInfo {
+    pub fn __repr__(&self) -> String {
+        let start = self
+            .start
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "None".into());
+        let stop = self
+            .stop
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "None".into());
+        let strand = self
+            .strand
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "None".into());
         format!(
-            "SequenceInfo(tag='{}', has_faa={}, has_ffn={})",
-            self.tag,
-            self.faa.is_some(),
-            self.ffn.is_some()
+            "FeatureInfo(locus_tag='{}', gene={:?}, product={:?}, {}..{}, strand={}, extras={:?})",
+            self.locus_tag, self.gene, self.product, start, stop, strand, self.extras
         )
     }
 }
 
-///A wrapper around the Record type to expose it to Python
-#[pyclass(name = "Record")]
-struct PyRecord(InternalRecord);
-
-#[pymethods]
-impl PyRecord {
-    fn __repr__(&self) -> String {
-        match &self.0 {
-            InternalRecord::Gbk(r) => format!(
-                "Record(id: {}, format: GBK, sequence length: {})",
-                r.id,
-                r.sequence.len()
-            ),
-            InternalRecord::Embl(r) => format!(
-                "Record(id: {}, format: EMBL, sequence length: {})",
-                r.id,
-                r.sequence.len()
-            ),
+//PySequenceInfo contains the sequenceattributes, with an extras field as for PyFeatureInfo
+#[pyclass]
+#[derive(Clone)]
+pub struct PySequenceInfo {
+    #[pyo3(get)]
+    pub locus_tag: String,
+    #[pyo3(get)]
+    pub faa: Option<String>,
+    #[pyo3(get)]
+    pub ffn: Option<String>,
+    #[pyo3(get)]
+    pub extras: Vec<String>,
+}
+impl PySequenceInfo {
+    pub fn new(id: &str) -> Self {
+        Self {
+            locus_tag: id.to_string(),
+            faa: None,
+            ffn: None,
+            extras: Vec::new(),
         }
     }
+}
+#[pymethods]
+impl PySequenceInfo {
+    fn __repr__(&self) -> String {
+        format!(
+            "SequenceInfo(locus_tag='{}', has_faa={}, has_ffn={}, extras={:?})",
+            self.locus_tag,
+            self.faa.is_some(),
+            self.ffn.is_some(),
+            self.extras,
+        )
+    }
+}
+//create an iter struct for Locus_tag key for both FeatureCollection and SequenceCollection
+#[pyclass]
+pub struct LocusTagIterator {
+    keys: Vec<String>,
+    index: usize,
+}
+#[pymethods]
+impl LocusTagIterator {
+    fn __iter__(slf: ::pyo3::PyRef<'_, Self>) -> ::pyo3::PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<String> {
+        if self.index < self.keys.len() {
+            let res = self.keys[self.index].clone();
+            self.index += 1;
+            Some(res)
+        } else {
+            None
+        }
+    }
+}
+//create the SequenceCollection and the FeatureCollection to hold the features using macro from macro.rs
+//SequenceCollection is a HashMap of Id, Py<PySequenceInfo>, upfront cost - preventing allocations for each entry
+//FeatureCollection is a HashMap of Id, Py<PyFeatureInfo>,
+//since they are similar except in the data and types contained, both are built here from macro in macro.rs
+crate::create_collection!(FeatureCollection, PyFeatureInfo, "FeatureCollection");
+crate::create_collection!(SequenceCollection, PySequenceInfo, "SequenceCollection");
+//generate the RecordCollection using the macro
+crate::create_collection!(RecordCollection, PyRecord, "RecordCollection");
+
+//create build sequences and build features methods for both gbk and embl types
+//TODO: replace with a single method for each if we move from gbk and embl types to a generic
+// Generate the two functions
+crate::impl_build_sequences!(build_sequences_gbk, microBioRust::gbk::Record);
+crate::impl_build_sequences!(build_sequences_embl, microBioRust::embl::Record);
+crate::impl_build_features!(
+    build_features_gbk,
+    microBioRust::gbk::Record,
+    microBioRust::gbk::FeatureAttributes
+);
+crate::impl_build_features!(
+    build_features_embl,
+    microBioRust::embl::Record,
+    microBioRust::embl::FeatureAttributes
+);
+
+//create a PyRecord with inner of InternalRecord for gbk and embl, contains .sequences() and .features() methods
+//TODO: replace the InternalRecord with a top level Record if we move from gbk/embl to a generic type
+//and all match arms collapse to single call
+#[pyclass]
+#[derive(Clone)]
+pub struct PyRecord {
+    inner: InternalRecord,
+}
+#[pymethods]
+impl PyRecord {
     fn id(&self) -> &str {
-        match &self.0 {
+        match &self.inner {
             InternalRecord::Gbk(r) => &r.id,
             InternalRecord::Embl(r) => &r.id,
         }
     }
-    fn get_locus_tags(&self) -> Vec<String> {
-        match &self.0 {
+    // Whole-genome nucleotide — distinct from per-CDS ffn
+    fn sequence(&self) -> &str {
+        match &self.inner {
+            InternalRecord::Gbk(r) => &r.sequence,
+            InternalRecord::Embl(r) => &r.sequence,
+        }
+    }
+    fn locus_tag(&self) -> Vec<String> {
+        match &self.inner {
             InternalRecord::Gbk(r) => r.cds.attributes.keys().cloned().collect(),
             InternalRecord::Embl(r) => r.cds.attributes.keys().cloned().collect(),
         }
     }
-    fn get_sequence(&self) -> String {
-        match &self.0 {
-            InternalRecord::Gbk(r) => r.sequence.clone(),
-            InternalRecord::Embl(r) => r.sequence.clone(),
+    // py token required — Python objects allocated inside build helpers
+    fn sequences(&self, py: Python<'_>) -> SequenceCollection {
+        let inner = match &self.inner {
+            InternalRecord::Gbk(r) => build_sequences_gbk(r, py),
+            InternalRecord::Embl(r) => build_sequences_embl(r, py),
+        };
+        SequenceCollection { inner }
+    }
+    fn features(&self, py: Python<'_>) -> FeatureCollection {
+        let inner = match &self.inner {
+            InternalRecord::Gbk(r) => build_features_gbk(r, py),
+            InternalRecord::Embl(r) => build_features_embl(r, py),
+        };
+        FeatureCollection { inner }
+    }
+    fn __repr__(&self) -> String {
+        match &self.inner {
+            InternalRecord::Gbk(r) => format!(
+                "PyRecord(id='{}', format=GBK,  seq_len={})",
+                r.id,
+                r.sequence.len()
+            ),
+            InternalRecord::Embl(r) => format!(
+                "PyRecord(id='{}', format=EMBL, seq_len={})",
+                r.id,
+                r.sequence.len()
+            ),
         }
     }
-    fn get_attributes(&self) -> HashMap<String, String> {
-        match &self.0 {
-            InternalRecord::Gbk(r) => r
-                .cds
-                .attributes
-                .iter()
-                .map(|(k, v)| (k.clone(), format!("{v:?}")))
-                .collect(),
-            InternalRecord::Embl(r) => r
-                .cds
-                .attributes
-                .iter()
-                .map(|(k, v)| (k.clone(), format!("{v:?}")))
-                .collect(),
-        }
+}
+//parse genbank function - returns the RecordCollection, good for fna and metadata from source
+#[pyfunction]
+#[pyo3(name = "parse_gbk")]
+pub fn parse_gbk(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
+    let mut inner = HashMap::new();
+    for r in genbank!(filename) {
+        let id = r.id.clone();
+        //TODO: STRICT -Duplicate Check and line number error
+        //if inner.contains_key(&id) {
+        //    return Err(PyValueError::new_err(format!(
+        //       "Integrity Error: Duplicate record ID '{}' encountered in file '{}'. \
+        //         Check line {} (approx). Bioinformatic formats require unique identifiers.",
+        //        id,
+        //        filename,
+        //        r.start_line // Assumes microBioRust tracks the line number
+        //    )));
+        //}
+        let obj = Py::new(
+            py,
+            PyRecord {
+                inner: InternalRecord::Gbk(r),
+            },
+        )
+        .expect("Failed to allocate PyRecord");
+        inner.insert(id, obj);
     }
-    fn get_feature(&self, locus_tag: &str) -> Option<PyFeatureInfo> {
-        match &self.0 {
-            InternalRecord::Gbk(r) => r.cds.attributes.get(locus_tag).map(|attrs| PyFeatureInfo {
-                inner: attrs
-                    .iter()
-                    .cloned()
-                    .map(InternalFeatureAttributes::Gbk)
-                    .collect(),
-            }),
-            InternalRecord::Embl(r) => r.cds.attributes.get(locus_tag).map(|attrs| PyFeatureInfo {
-                inner: attrs
-                    .iter()
-                    .cloned()
-                    .map(InternalFeatureAttributes::Embl)
-                    .collect(),
-            }),
-        }
+    Ok(RecordCollection { inner })
+}
+//same function as above but for embl
+#[pyfunction]
+#[pyo3(name = "parse_embl")]
+pub fn parse_embl(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
+    let mut inner = HashMap::new();
+    for r in embl!(filename) {
+        let id = r.id.clone();
+        //TODO: STRICT -Duplicate Check and line number error
+        //if inner.contains_key(&id) {
+        //    return Err(PyValueError::new_err(format!(
+        //       "Integrity Error: Duplicate record ID '{}' encountered in file '{}'. \
+        //         Check line {} (approx). Bioinformatic formats require unique identifiers.",
+        //        id,
+        //        filename,
+        //        r.start_line // Assumes microBioRust tracks the line number
+        //    )));
+        //}
+        let obj = Py::new(
+            py,
+            PyRecord {
+                inner: InternalRecord::Embl(r),
+            },
+        )
+        .expect("Failed to allocate PyRecord");
+        inner.insert(id, obj);
     }
-    fn __getitem__(&self, tag: &str) -> PyResult<PySequenceInfo> {
-        //match on the record type first
-        let (faa, ffn) = match &self.0 {
-            InternalRecord::Gbk(r) => {
-                //logic for GenBank records
-                r.seq_features.seq_attributes.get(tag).map(|attrs| {
-                    let mut faa = None;
-                    let mut ffn = None;
-                    for attr in attrs {
-                        match attr {
-                            //This uses gbk::SequenceAttributes
-                            microBioRust::gbk::SequenceAttributes::SequenceFaa { value } => {
-                                faa = Some(value.clone())
-                            }
-                            microBioRust::gbk::SequenceAttributes::SequenceFfn { value } => {
-                                ffn = Some(value.clone())
-                            }
-                            _ => {}
-                        }
-                    }
-                    (faa, ffn)
-                })
+    Ok(RecordCollection { inner })
+}
+
+//the fna is the whole record nucleotide sequence
+//python callers use record.sequence() to get the string.
+#[pyfunction]
+pub fn gbk_to_fna(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
+    parse_gbk(filename, py)
+}
+#[pyfunction]
+pub fn embl_to_fna(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
+    parse_embl(filename, py)
+}
+
+//to return a flat SequenceCollection keyed by "record_id|locus_tag".
+//need to use parse_gbk/parse_embl to access both sequences and features
+#[pyfunction]
+pub fn gbk_to_faa(filename: &str, py: Python<'_>) -> PyResult<SequenceCollection> {
+    let mut inner = HashMap::new();
+    for r in genbank!(filename) {
+        for (tag, _) in &r.cds.attributes {
+            if let Some(seq) = r.seq_features.get_sequence_faa(tag) {
+                let key = format!("{}|{}", r.id, tag);
+                let info = PySequenceInfo {
+                    locus_tag: key.clone(),
+                    faa: Some(seq.to_string()),
+                    ffn: None,
+                    extras: Vec::new(),
+                };
+                let obj = Py::new(py, info).expect("failed to allocate PySequenceInfo");
+                inner.insert(key, obj);
             }
-            InternalRecord::Embl(r) => {
-                //logic for EMBL records
-                r.seq_features.seq_attributes.get(tag).map(|attrs| {
-                    let mut faa = None;
-                    let mut ffn = None;
-                    for attr in attrs {
-                        match attr {
-                            //This uses embl::SequenceAttributes
-                            microBioRust::embl::SequenceAttributes::SequenceFaa { value } => {
-                                faa = Some(value.clone())
-                            }
-                            microBioRust::embl::SequenceAttributes::SequenceFfn { value } => {
-                                ffn = Some(value.clone())
-                            }
-                            _ => {}
-                        }
-                    }
-                    (faa, ffn)
-                })
-            }
         }
-        .ok_or_else(|| PyKeyError::new_err(tag.to_string()))?;
-        Ok(PySequenceInfo {
-            tag: tag.to_string(),
-            faa,
-            ffn,
-        })
     }
+    Ok(SequenceCollection { inner })
 }
 
 #[pyfunction]
-pub fn gbk_to_fna(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = genbank!(filename);
-
-    let records = raw_records
-        .into_iter()
-        .map(|r| {
-            //if it's currently Vec<u8>
-            let nucleotide_seq = String::from_utf8_lossy(&r.sequence).into_owned();
-
-            PySequenceInfo {
-                tag: r.id.clone(),
-                faa: None,               // We are returning FFN, so leave FAA empty
-                ffn: Some(nucleotide_seq), // FFN data goes here
+pub fn gbk_to_ffn(filename: &str, py: Python<'_>) -> PyResult<SequenceCollection> {
+    let mut inner = HashMap::new();
+    for r in genbank!(filename) {
+        for (tag, _) in &r.cds.attributes {
+            if let Some(seq) = r.seq_features.get_sequence_ffn(tag) {
+                let key = format!("{}|{}", r.id, tag);
+                let info = PySequenceInfo {
+                    locus_tag: key.clone(),
+                    faa: None,
+                    ffn: Some(seq.to_string()),
+                    extras: Vec::new(),
+                };
+                let obj = Py::new(py, info).expect("failed to allocate PySequenceInfo");
+                inner.insert(key, obj);
             }
-        })
-        .collect();
-
-    Ok(SequenceCollection { records })
+        }
+    }
+    Ok(SequenceCollection { inner })
 }
 
+#[pyfunction]
+pub fn embl_to_faa(filename: &str, py: Python<'_>) -> PyResult<SequenceCollection> {
+    let mut inner = HashMap::new();
+    for r in embl!(filename) {
+        for (tag, _) in &r.cds.attributes {
+            if let Some(seq) = r.seq_features.get_sequence_faa(tag) {
+                let key = format!("{}|{}", r.id, tag);
+                let info = PySequenceInfo {
+                    locus_tag: key.clone(),
+                    faa: Some(seq.to_string()),
+                    ffn: None,
+                    extras: Vec::new(),
+                };
+                let obj = Py::new(py, info).expect("failed to allocate PySequenceInfo");
+                inner.insert(key, obj);
+            }
+        }
+    }
+    Ok(SequenceCollection { inner })
+}
+
+#[pyfunction]
+pub fn embl_to_ffn(filename: &str, py: Python<'_>) -> PyResult<SequenceCollection> {
+    let mut inner = HashMap::new();
+    for r in embl!(filename) {
+        for (tag, _) in &r.cds.attributes {
+            if let Some(seq) = r.seq_features.get_sequence_ffn(tag) {
+                let key = format!("{}|{}", r.id, tag);
+                let info = PySequenceInfo {
+                    locus_tag: key.clone(),
+                    faa: None,
+                    ffn: Some(seq.to_string()),
+                    extras: Vec::new(),
+                };
+                let obj = Py::new(py, info).expect("failed to allocate PySequenceInfo");
+                inner.insert(key, obj);
+            }
+        }
+    }
+    Ok(SequenceCollection { inner })
+}
+
+//count function
 #[pyfunction]
 pub fn gbk_to_faa_count(filename: &str) -> PyResult<usize> {
-    let records = genbank!(filename);
-    Ok(records
+    Ok(genbank!(filename)
         .iter()
         .flat_map(|r| r.seq_features.seq_attributes.values())
         .flat_map(|set| set.iter())
         .filter(|attr| matches!(attr, SequenceAttributes::SequenceFaa { .. }))
         .count())
-}
-
-#[pyfunction]
-pub fn gbk_to_faa(filename: &str) -> PyResult<SequenceCollection> {
-    let records = genbank!(filename);
-    let mut py_records = Vec::new();
-
-    for record in records {
-        for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
-                py_records.push(PySequenceInfo { 
-                    tag: format!("{}|{}", record.id, k),
-                    faa: Some(seq.to_string()),
-                    ffn: None, 
-                });
-            }
-        }
-    }
-    Ok(SequenceCollection { records: py_records })
-}
-
-
-#[pyfunction]
-pub fn gbk_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
-    let records = genbank!(filename);
-    let mut collection_vec = HashMap::new();
-
-    for record in records {
-        for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_ffn(k) {
-                collection_vec.push(PySequenceInfo { 
-                    tag: format!("{}|{}", record.id, k),
-                    faa: None,
-                    ffn: Some(seq.to_string()), 
-                });
-            }
-        }
-    }
-    Ok(SequenceCollection { records: collection_vec })
-}
-
-#[pyfunction]
-pub fn embl_to_faa(filename: &str) -> PyResult<SequenceCollection> {
-    let records = embl!(filename);
-    let mut py_records = HashMap::new();
-
-    for record in records {
-        for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_faa(k) {
-                py_records.push(PySequenceInfo { 
-                    tag: format!("{}|{}", record.id, k),
-                    faa: Some(seq.to_string()),
-                    ffn: None, 
-                });
-            }
-        }
-    }
-    Ok(SequenceCollection { records: py_records })
-}
-
-#[pyfunction]
-pub fn embl_to_ffn(filename: &str) -> PyResult<SequenceCollection> {
-    let records = embl!(filename);
-    let mut py_records = HashMap::new();
-
-    for record in records {
-        for (k, _v) in &record.cds.attributes {
-            if let Some(seq) = record.seq_features.get_sequence_ffn(k) {
-                py_records.push(PySequenceInfo { 
-                    tag: format!("{}|{}", record.id, k),
-                    faa: None,
-                    ffn: Some(seq.to_string()), 
-                });
-            }
-        }
-    }
-    Ok(SequenceCollection { records: py_records })
-}
-
-#[pyfunction]
-pub fn embl_to_fna(filename: &str) -> PyResult<SequenceCollection> {
-    let raw_records = embl!(filename);
-
-    let records = raw_records
-        .into_iter()
-        .map(|r| {
-            // Use from_utf8_lossy if it's currently Vec<u8>
-            let nucleotide_seq = String::from_utf8_lossy(&r.sequence).into_owned();
-
-            PySequenceInfo {
-                tag: r.id.clone(),
-                faa: None,               //we are returning FNA, so leave FAA empty
-                ffn: Some(nucleotide_seq), //fna data can go here
-            }
-        })
-        .collect();
-
-    Ok(SequenceCollection { records })
 }
 
 pub fn process_alignment<T>(
@@ -737,7 +732,7 @@ pub fn parse_xml<'py>(py: Python<'py>, path: String) -> PyResult<Bound<'py, PyAn
 #[pyfunction]
 pub fn register_seqmetrics(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(py, "seqmetrics")?;
-    register_functions!(m, hydrophobicity, amino_counts, amino_percentage);
+    register_all!(m, parent, hydrophobicity, amino_counts, amino_percentage);
     parent.add_submodule(&m)?;
     py.import("sys")?
         .getattr("modules")?
@@ -748,7 +743,7 @@ pub fn register_seqmetrics(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyRe
 #[pyfunction]
 pub fn register_align(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(py, "align")?;
-    register_functions!(m, purge_gaps, subset_msa_alignment, get_consensus);
+    register_all!(m, parent, purge_gaps, subset_msa_alignment, get_consensus);
     parent.add_submodule(&m)?;
     py.import("sys")?
         .getattr("modules")?
@@ -759,7 +754,7 @@ pub fn register_align(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<
 #[pyfunction]
 pub fn register_blast(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(py, "blast")?;
-    register_functions!(m, parse_tabular, parse_xml);
+    register_all!(m, parent, parse_tabular, parse_xml);
     parent.add_submodule(&m)?;
     py.import("sys")?
         .getattr("modules")?
@@ -770,8 +765,10 @@ pub fn register_blast(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<
 #[pyfunction]
 pub fn register_gbk(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(py, "gbk")?;
-    register_functions!(
+    register_all!(
         m,
+        parent,
+        parse_gbk,
         gbk_to_faa,
         gbk_to_fna,
         gbk_to_ffn,
@@ -787,12 +784,16 @@ pub fn register_gbk(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()
 }
 #[pyfunction]
 pub fn register_embl(py: Python<'_>, parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new(py, "embl")?;
-    //register_functions!(m, embl_to_gff, embl_to_faa, embl_to_fna);
-    m.add_function(pyo3::wrap_pyfunction!(embl_to_gff, &m)?)?;
-    m.add_function(pyo3::wrap_pyfunction!(embl_to_faa, &m)?)?;
-    m.add_function(pyo3::wrap_pyfunction!(embl_to_fna, &m)?)?;
-    m.add_function(pyo3::wrap_pyfunction!(embl_to_ffn, &m)?)?;
+    let m = PyModule::new(py, "gbk")?;
+    register_all!(
+        m,
+        parent,
+        parse_embl,
+        embl_to_faa,
+        embl_to_fna,
+        embl_to_ffn,
+        embl_to_gff
+    );
     parent.add_submodule(&m)?;
     py.import("sys")?
         .getattr("modules")?
@@ -808,6 +809,16 @@ fn microbiorust(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_align(py, m)?;
     register_seqmetrics(py, m)?;
     register_blast(py, m)?;
+    //register classes
+    m.add_class::<PyRecord>()?;
+    m.add_class::<PyFeatureInfo>()?;
+    m.add_class::<PySequenceInfo>()?;
+
+    //register Collections and Iterators!
+    m.add_class::<RecordCollection>()?;
+    m.add_class::<FeatureCollection>()?;
+    m.add_class::<SequenceCollection>()?;
+    m.add_class::<LocusTagIterator>()?;
     Ok(())
 }
 
@@ -827,13 +838,20 @@ mod tests {
 
             //GBK
             let gbk = m.getattr("gbk").expect("gbk submodule missing");
-            for func in &["gbk_to_faa", "gbk_to_fna", "gbk_to_ffn", "gbk_to_faa_count", "gbk_to_gff"] {
+            for func in &[
+                "gbk_to_faa",
+                "parse_gbk",
+                "gbk_to_fna",
+                "gbk_to_ffn",
+                "gbk_to_faa_count",
+                "gbk_to_gff",
+            ] {
                 assert!(gbk.getattr(func).is_ok(), "Function gbk.{} not found", func);
             }
 
             //EMBL
             let embl = m.getattr("embl").expect("embl submodule missing");
-            for func in &["embl_to_faa", "embl_to_fna", "embl_to_gff"] {
+            for func in &["embl_to_faa", "parse_embl", "embl_to_fna", "embl_to_gff"] {
                 assert!(
                     embl.getattr(func).is_ok(),
                     "Function embl.{} not found",
