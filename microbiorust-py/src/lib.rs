@@ -1,6 +1,6 @@
 //! # microbiorust-py
 //!
-//! High-performance Python bindings for the `microBioRust` bioinformatics library using PyO3.
+//! High-performance Python bindings for the microBioRust bioinformatics library using PyO3.
 //! This crate provides a bridge for rapid genomic data processing, sequence analysis, and
 //! alignment manipulation.
 //!
@@ -16,7 +16,13 @@
 //!
 //! ## Genome Data Access (conversions of filetypes)
 //!
-//! You can easily convert filetypes using write_faa, write_ffn,
+//! You can easily directly convert filetypes using write_faa, write_ffn, write_fna
+//! 
+//! import microbiorust as mb
+//! collection = mb.parse_gbk("test_input.gbk")
+//! collection.write_faa("test_output.faa")
+//!
+//! To interact with data in Python access the collection like a dictionary 
 //! loaders like parse_gbk return a RecordCollection which has both sequences() and features()
 //! extraction functions like gbk_to_faa return a SequenceCollection containing id, faa and ffn seqs. Accessing an item
 //! yields a PyRecord, acting as a gateway to features and sequences.
@@ -32,13 +38,13 @@
 //!     record = collection[key]
 //!     print(f"Processing {record.id()}...")
 //!
-//!     # Access metadata (PyFeatureInfo)
+//! #access per gene metadata (as PyFeatureInfo)
 //!     features = record.features()
 //!     if "b3304" in features:
 //!         feat = features["b3304"]
 //!         print(f"Gene: {feat.gene}, Strand: {feat.strand}")
 //!
-//!     # Access sequences (PySequenceInfo)
+//! #or access per gene sequences (PySequenceInfo) as .faa or .ffn
 //!     sequences = record.sequences()
 //!     if "b3304" in sequences:
 //!         print(f"Protein: {sequences['b3304'].faa}")
