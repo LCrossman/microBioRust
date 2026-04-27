@@ -33,33 +33,34 @@ macro_rules! impl_build_features {
 }
 #[macro_export]
 macro_rules! impl_build_sequences {
-    ($fn_name:ident, $record_type:ty) => {
+    ($fn_name:ident, $record_type:ty, $enum_path:path) => {
        fn $fn_name(
             r: &$record_type,
             py: ::pyo3::Python<'_>
         ) -> ::std::collections::HashMap<String, ::pyo3::Py<$crate::PySequenceInfo>> {
+            use $enum_path as Attrs;
             let mut map = ::std::collections::HashMap::new();
-            for (tag, attrs) in &r.cds.attributes {
-                let faa = r.seq_features.get_sequence_faa(tag).map(|s| s.to_string());
-                let ffn = r.seq_features.get_sequence_ffn(tag).map(|s| s.to_string());
-                
-                if faa.is_some() || ffn.is_some() {
-                    let tag_owned = tag.clone();
-                    let extras: Vec<String> = attrs.iter().map(|attr| format!("{:?}", attr)).collect();
-                    let info = $crate::PySequenceInfo { 
-                        locus_tag: tag_owned.clone(), 
-                        faa, 
-                        ffn,
-                        extras,
-                    };
-                    let obj = ::pyo3::Py::new(py, info)
-                        .expect("failed to allocate PySequenceInfo");
+            for (tag, attrs) in &r.seq_features.seq_attributes {
+                let tag_owned = tag.clone();
+                let mut info = $crate::PySequenceInfo::new(&tag_owned);
+                for attr in attrs {
+                    #[allow(unreachable_patterns)]
+                    match attr {
+                       Attrs::SequenceFaa { value } => info.faa = Some(value.clone()),
+                       Attrs::SequenceFfn { value } => info.ffn = Some(value.clone()),
+                       other => {
+                           info.extras.push(format!("{:?}", other));
+                       }
+                    }
+                }
+                if info.faa.is_some() || info.ffn.is_some() {
+                    let obj = ::pyo3::Py::new(py, info).expect("failed to allocate PySequenceInfo");
                     map.insert(tag_owned, obj);
                 }
             }
             map
-        }
-    };
+         }
+     };
 }
 #[macro_export]
 macro_rules! create_collection {

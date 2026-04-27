@@ -16,6 +16,7 @@
 //!
 //! ## Genome Data Access (conversions of filetypes)
 //!
+//! You can easily convert filetypes using write_faa, write_ffn,
 //! loaders like parse_gbk return a RecordCollection which has both sequences() and features()
 //! extraction functions like gbk_to_faa return a SequenceCollection containing id, faa and ffn seqs. Accessing an item
 //! yields a PyRecord, acting as a gateway to features and sequences.
@@ -99,6 +100,7 @@ use pyo3::types::PyList;
 use pyo3::{prelude::*, types::PyModule};
 use pythonize::pythonize;
 use std::collections::{HashMap, HashSet};
+use std::io::BufWriter;
 use std::ops::Range;
 use std::{
     collections::BTreeMap,
@@ -232,14 +234,139 @@ impl LocusTagIterator {
 //since they are similar except in the data and types contained, both are built here from macro in macro.rs
 crate::create_collection!(FeatureCollection, PyFeatureInfo, "FeatureCollection");
 crate::create_collection!(SequenceCollection, PySequenceInfo, "SequenceCollection");
-//generate the RecordCollection using the macro
-crate::create_collection!(RecordCollection, PyRecord, "RecordCollection");
-
+//generate the RecordCollection separately with the write functions
+#[pyclass]
+pub struct RecordCollection {
+    pub inner: HashMap<String, Py<PyRecord>>,
+}
+#[pymethods]
+impl RecordCollection {
+    #[new]
+    fn new() -> Self {
+        RecordCollection {
+            inner: HashMap::new(),
+        }
+    }
+    fn __len__(&self) -> usize {
+        self.inner.len()
+    }
+    fn __contains__(&self, id: &str) -> bool {
+        self.inner.contains_key(id)
+    }
+    fn __repr__(&self) -> String {
+        format!("RecordCollection({} entries)", self.inner.len())
+    }
+    fn __getitem__<'py>(&self, record_id: &str, py: Python<'py>) -> PyResult<Bound<'py, PyRecord>> {
+        self.inner
+            .get(record_id)
+            .map(|obj| obj.bind(py).clone())
+            .ok_or_else(|| PyKeyError::new_err(record_id.to_string()))
+    }
+    fn keys<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        PyList::new(py, self.inner.keys())
+    }
+    fn __iter__(slf: PyRef<'_, Self>) -> LocusTagIterator {
+        LocusTagIterator {
+            keys: slf.inner.keys().cloned().collect(),
+            index: 0,
+        }
+    }
+    fn insert(&mut self, record_id: String, record: Py<PyRecord>) {
+        //TODO: decide if duplicate keys should error on a per line basis
+        self.inner.insert(record_id, record);
+    }
+    //write all the faa format to a file, no conversion to Python overhead
+    fn write_faa(&self, filename: &str, py: Python<'_>) -> PyResult<(String, usize)> {
+        let mut count = 0;
+        let f = std::fs::File::create(filename).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let mut w = BufWriter::new(f);
+        for obj in self.inner.values() {
+            let record = obj.bind(py).borrow();
+            match &record.inner {
+                InternalRecord::Gbk(r) => {
+                    for (tag, _) in &r.cds.attributes {
+                        if let Some(seq) = r.seq_features.get_sequence_faa(tag) {
+                            writeln!(w, ">{}|{}\n{}", r.id, tag, seq)
+                                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+                            count += 1;
+                        }
+                    }
+                }
+                InternalRecord::Embl(r) => {
+                    for (tag, _) in &r.cds.attributes {
+                        if let Some(seq) = r.seq_features.get_sequence_faa(tag) {
+                            writeln!(w, ">{}|{}\n{}", r.id, tag, seq)
+                                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        Ok((filename.to_string(), count))
+    }
+    //write all the ffn to a file, no conversion to python overhead
+    fn write_ffn(&self, filename: &str, py: Python<'_>) -> PyResult<(String, usize)> {
+        let mut count = 0;
+        let f = std::fs::File::create(filename).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let mut w = BufWriter::new(f);
+        for obj in self.inner.values() {
+            let record = obj.bind(py).borrow();
+            match &record.inner {
+                InternalRecord::Gbk(r) => {
+                    for (tag, _) in &r.cds.attributes {
+                        if let Some(seq) = r.seq_features.get_sequence_ffn(tag) {
+                            writeln!(w, ">{}|{}\n{}", r.id, tag, seq)
+                                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+                            count += 1;
+                        }
+                    }
+                }
+                InternalRecord::Embl(r) => {
+                    for (tag, _) in &r.cds.attributes {
+                        if let Some(seq) = r.seq_features.get_sequence_ffn(tag) {
+                            writeln!(w, ">{}|{}\n{}", r.id, tag, seq)
+                                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        Ok((filename.to_string(), count))
+    }
+    //write fna of records to a file, no conversion to python overhead
+    fn write_fna(&self, filename: &str, py: Python<'_>) -> PyResult<(String, usize)> {
+        let mut count = 0;
+        let f = std::fs::File::create(filename).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let mut w = BufWriter::new(f);
+        for obj in self.inner.values() {
+            let record = obj.bind(py).borrow();
+            match &record.inner {
+                InternalRecord::Gbk(r) => writeln!(w, ">{}\n{}", r.id, r.sequence)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?,
+                InternalRecord::Embl(r) => writeln!(w, ">{}\n{}", r.id, r.sequence)
+                    .map_err(|e| PyIOError::new_err(e.to_string()))?,
+            }
+            count += 1;
+        }
+        Ok((filename.to_string(), count))
+    }
+}
+//ability to return a HashMap to python containing all the data
 //create build sequences and build features methods for both gbk and embl types
 //TODO: replace with a single method for each if we move from gbk and embl types to a generic
 // Generate the two functions
-crate::impl_build_sequences!(build_sequences_gbk, microBioRust::gbk::Record);
-crate::impl_build_sequences!(build_sequences_embl, microBioRust::embl::Record);
+crate::impl_build_sequences!(
+    build_sequences_gbk,
+    microBioRust::gbk::Record,
+    microBioRust::gbk::SequenceAttributes
+);
+crate::impl_build_sequences!(
+    build_sequences_embl,
+    microBioRust::embl::Record,
+    microBioRust::embl::SequenceAttributes
+);
 crate::impl_build_features!(
     build_features_gbk,
     microBioRust::gbk::Record,
@@ -267,7 +394,7 @@ impl PyRecord {
             InternalRecord::Embl(r) => &r.id,
         }
     }
-    // Whole-genome nucleotide — distinct from per-CDS ffn
+    //whole-genome nucleotide — distinct from per-CDS ffn
     fn sequence(&self) -> &str {
         match &self.inner {
             InternalRecord::Gbk(r) => &r.sequence,
@@ -312,7 +439,6 @@ impl PyRecord {
 }
 //parse genbank function - returns the RecordCollection, good for fna and metadata from source
 #[pyfunction]
-#[pyo3(name = "parse_gbk")]
 pub fn parse_gbk(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
     let mut inner = HashMap::new();
     for r in genbank!(filename) {
@@ -340,7 +466,6 @@ pub fn parse_gbk(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
 }
 //same function as above but for embl
 #[pyfunction]
-#[pyo3(name = "parse_embl")]
 pub fn parse_embl(filename: &str, py: Python<'_>) -> PyResult<RecordCollection> {
     let mut inner = HashMap::new();
     for r in embl!(filename) {
