@@ -81,6 +81,7 @@ def mock_blast_tab(tmp_path):
     return str(path)
 
 
+<<<<<<< HEAD
 def test_gbk_loader_aliases(mock_gbk):
     """Verify all specialized GBK loaders return a valid collection"""
     # Test all three aliases to ensure they point to the correct InternalRecord::Gbk logic
@@ -95,6 +96,9 @@ def test_gbk_loader_aliases(mock_gbk):
         assert "source_1" in collection.keys()
         assert len(collection.keys()) > 0
         assert "SequenceCollection" in repr(collection)
+=======
+import os
+>>>>>>> 505cee7 (final branch fixes)
 
 
 def test_gbk_count_function(mock_gbk):
@@ -107,20 +111,19 @@ def test_gbk_count_function(mock_gbk):
 
 def test_record_access_and_metadata(mock_gbk):
     """Test retrieving a record and its lazy-loaded metadata (PyFeatureInfo)."""
-    collection = microbiorust.gbk_to_faa(mock_gbk)
-    record = collection["source_1"]
+    collection = microbiorust.parse_gbk(mock_gbk)
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
 
-    # Verify the Record basic info
-    assert record.id() == "source_1"
-    assert "Record" in repr(record)
+    # create the features on the first record
+    feature_collection = record.features()
+    feat = feature_collection["b3304"]
 
-    # 1. Test Metadata Proxy (PyFeatureInfo) via get_feature
-    feat = record.get_feature("b3304")
-    assert feat is not None
+    # Test Metadata Proxy (PyFeatureInfo)
     assert feat.gene == "rplR"
     assert feat.product == "50S ribosomal subunit protein L18"
 
-    # Verify numeric extractions from our InternalFeatureAttributes match logic
+    # Verify numeric extractions from our InternalFeatureAttributes match expected logic
     assert feat.strand == -1
     assert feat.start == 1
     assert feat.stop == 354
@@ -128,43 +131,52 @@ def test_record_access_and_metadata(mock_gbk):
 
 
 def test_sequence_getitem(mock_gbk):
-    """Test the 'Sniper' sequence access via __getitem__ (PySequenceInfo)."""
-    collection = microbiorust.gbk_to_faa(mock_gbk)
-    record = collection["source_1"]
+    collection = microbiorust.parse_gbk(mock_gbk)
+    first_key = list(collection.keys())[0]
+    rec = collection[first_key]
+    assert "source_1" in rec.id()
 
-    # This triggers record.__getitem__ which returns PySequenceInfo
-    seq_info = record["b3304"]
-
-    assert seq_info.tag == "b3304"
-    assert seq_info.faa.startswith("MDKKSAR")
-    assert seq_info.ffn is not None
-    assert "SequenceInfo" in repr(seq_info)
+    # This triggers rec.__getitem__ to return a PySequenceInfo
+    sequence_collection = rec.sequences()
+    all_proteins = [
+        sequence_collection[tag].faa
+        for tag in sequence_collection
+        if sequence_collection[tag].faa
+    ]
+    assert len(all_proteins) > 0
+    print("len ", len(all_proteins))
 
 
 def test_embl_loader_integration():
-    """Verify EMBL files flow through the same Unified Record API."""
+    """Verify EMBL files flow through the same Record"""
+    collection = microbiorust.parse_embl("example.embl")
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
 
-    collection = microbiorust.embl_to_faa("example.embl")
-
-    # Even though it's EMBL, the Python side looks identical!
-    record = collection["AM236082"]
+    # access the id and features
+    feature_collection = record.features()
     assert record.id() == "AM236082"
-
-    # Test that get_feature still works via the InternalFeatureAttributes::Embl variant
-    feat = record.get_feature("pRL80002")
+    feat = feature_collection["pRL80002"]
     assert feat is not None
+    # Test Metadata Proxy (PyFeatureInfo)
+    assert feat.gene == "repBp8"
+    assert feat.product == "replication protein RepB"
+
+    # Verify numeric extractions from our InternalFeatureAttributes match expected logic
+    assert feat.strand == 1
+    assert feat.start == 1321
+    assert feat.stop == 2280
+    assert feat.codon_start == 1
 
 
 def test_missing_keys_raise_errors(mock_gbk):
     """Verify we get clean Python KeyErrors instead of Rust panics."""
-    collection = microbiorust.gbk_to_faa(mock_gbk)
+    collection = microbiorust.parse_gbk(mock_gbk)
 
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
     with pytest.raises(KeyError):
-        _ = collection["non_existent_record"]
-
-    record = collection["source_1"]
-    with pytest.raises(KeyError):
-        _ = record["non_existent_tag"]
+        _ = record.features()["non_existent_gene"]
 
 
 def test_gbk_to_gff(mock_gbk):

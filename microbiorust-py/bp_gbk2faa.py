@@ -2,13 +2,11 @@
 
 from Bio import SeqIO
 from Bio.Seq import Seq
-import sys
 
-genbank_file = open(sys.argv[1],'r')  # <-- change to your file
+
+genbank_file = open("Rhiz3841.gbk.gb",'r')
 
 record = SeqIO.read(genbank_file, "genbank")
-
-print(f"Loaded {record.id}, length {len(record.seq)} bp\n")
 
 proteins = []
 
@@ -35,9 +33,9 @@ for feature in record.features:
         protein_id = feature.qualifiers.get("protein_id", ["unknown"])[0]
         locus_tag = feature.qualifiers.get("locus_tag", ["unknown"])[0]
         
-        print(f">{protein_id}  {locus_tag}")
-        print(translated)
-        print()
+        #print(f">{protein_id}  {locus_tag}")
+        #print(translated)
+        #print()
 
         proteins.append((protein_id, locus_tag, str(translated)))
 

@@ -3,7 +3,7 @@
 [package]
 name = "microbiorust-py"
 version = "0.1.5"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
 description = "Python bindings for microBioRust Microbiology friendly bioinformatics Rust functions"
