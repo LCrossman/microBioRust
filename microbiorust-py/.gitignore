@@ -1,0 +1,13 @@
+# Rust
+target/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# OS/IDE
+.DS_Store
+.vscode/
