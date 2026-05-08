@@ -2,7 +2,7 @@ import os
 import time
 import subprocess
 from Bio import SeqIO
-from microbiorust import gbk
+import microbiorust as mb
  
 
 #warnings.simplefilter('ignore', BioPythonWarning)
@@ -41,7 +41,7 @@ class PipelineSuite:
     def _run_once(self, engine, context):
         if context == 'interactive':
             if engine == 'rust':
-                return gbk.gbk_to_faa_count(self.filepath)
+                return mb.gbk_to_faa_count(self.filepath)
             else:
              count = 0
             for record in SeqIO.parse(self.filepath, "genbank"):

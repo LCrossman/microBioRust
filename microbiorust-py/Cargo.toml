@@ -3,7 +3,7 @@
 [package]
 name = "microbiorust-py"
 version = "0.1.5"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
 description = "Python bindings for microBioRust Microbiology friendly bioinformatics Rust functions"
@@ -20,7 +20,7 @@ name = "microbiorust"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.25.0" 
+version = "0.25.0"
 features = ["extension-module", "abi3-py310"]
 
 [features]
@@ -28,8 +28,7 @@ default = ["extension-module"]
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
-microBioRust = "0.1.3"
-microBioRust-seqmetrics = "0.1.3"
+microBioRust = { version = "0.1.3", path = "../microBioRust" }
+microBioRust-seqmetrics = { version = "0.1.3", path = "../seqmetrics" }
 pythonize = "0.25"
 tokio = { version = "1.49.0", features = ["full"] }
-
