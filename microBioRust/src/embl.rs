@@ -733,13 +733,13 @@ where
                         } else {
                             //println!("record sta {:?} sto {:?} cod {:?} stra {:?} record.seq length {:?}", &sta, &sto, &cod, &stra, &record.sequence.len());
                             //println!(
-                             //   "sliced sta {:?} sliced sto {:?} record.id {:?}",
-                             //   sta, sto, &record.id
-                             //);
+                            //   "sliced sta {:?} sliced sto {:?} record.id {:?}",
+                            //   sta, sto, &record.id
+                            //);
                             //println!(
-                                "iterable count is {:?} reverse strand codon start one",
-                                &iterablecount
-                             //);
+                            // "iterable count is {:?} reverse strand codon start one",
+                            // &iterablecount
+                            //);
                             //println!("this is the sequence len {:?}", &record.sequence.len());
                             if sto < record.sequence.len() {
                                 sliced_sequence = &record.sequence[sta..sto + 1];
@@ -1095,9 +1095,9 @@ pub fn format_translation(translation: &str) -> String {
             &cleaned_translation[i..valid_end]
         ));
         //println!(
-          //  "cleaned translation leng is {:?}",
+        //  "cleaned translation leng is {:?}",
         //    &cleaned_translation[i..valid_end].len()
-                //);
+        //);
         if cleaned_translation[i..valid_end].len() < 59 {
             formatted.push('\"');
         } else {
