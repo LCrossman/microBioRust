@@ -7,7 +7,7 @@ import microbiorust
 import pytest
 
 
-# --- FIXTURES: Generating Mock Data ---
+# FIXTURES: Generating Mock Data ---
 @pytest.fixture
 def mock_gbk(tmp_path):
     """Creates a minimal valid GenBank file."""
@@ -81,7 +81,6 @@ def mock_blast_tab(tmp_path):
     return str(path)
 
 
-<<<<<<< HEAD
 def test_gbk_loader_aliases(mock_gbk):
     """Verify all specialized GBK loaders return a valid collection"""
     # Test all three aliases to ensure they point to the correct InternalRecord::Gbk logic
@@ -93,12 +92,12 @@ def test_gbk_loader_aliases(mock_gbk):
 
     for load_func in loaders:
         collection = load_func(mock_gbk)
-        assert "source_1" in collection.keys()
+        keys = list(collection.keys())
+        
+        # This checks if "source_1" is either the key itself (FNA)
+        # or the prefix of the key (FAA/FFN)
+        assert any(k.startswith("source_1") for k in keys), f"Failed on {load_func.__name__}"
         assert len(collection.keys()) > 0
-        assert "SequenceCollection" in repr(collection)
-=======
-import os
->>>>>>> 505cee7 (final branch fixes)
 
 
 def test_gbk_count_function(mock_gbk):

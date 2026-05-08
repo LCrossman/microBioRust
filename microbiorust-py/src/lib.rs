@@ -442,6 +442,22 @@ impl PyRecord {
             ),
         }
     }
+    fn __getitem__(&self, py: Python<'_>, tag: &str) -> PyResult<PyObject> {
+    let features = self.features(py);
+    if features.inner.contains_key(tag) {
+        // 1. Get the Bound<'_, PyFeatureInfo>
+        // 2. Use .into_any() to get Bound<'_, PyAny>
+        // 3. Use .unbind() to get PyObject
+        return features.__getitem__(tag, py).map(|b| b.into_any().unbind());
+    }
+    
+    let sequences = self.sequences(py);
+    if sequences.inner.contains_key(tag) {
+        return sequences.__getitem__(tag, py).map(|b| b.into_any().unbind());
+    }
+    
+    Err(PyKeyError::new_err(tag.to_string()))
+}
 }
 //parse genbank function - returns the RecordCollection, good for fna and metadata from source
 #[pyfunction]
