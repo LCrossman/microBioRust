@@ -122,7 +122,7 @@
 //!        let mut read_counter: u32 = 0;
 //!        let mut seq_region: BTreeMap<String, (u32,u32)> = BTreeMap::new();
 //!        let mut record_vec: Vec<Record> = Vec::new();
-//!        loop {  
+//!        loop {
 //!            match records.next() {
 //!                Some(Ok(mut record)) => {
 //!	               //println!("next record");
@@ -309,7 +309,7 @@ macro_rules! embl {
         for rec in reader.records() {
             match rec {
                 Ok(r) => {
-                    println!("this is r {:?}", &r);
+                    //println!("this is r {:?}", &r);
                     vec.push(r);
                 }
                 Err(e) => panic!("Error reading record: {:?}", e),
@@ -722,37 +722,36 @@ where
                     //collects the DNA sequence and translations on the correct strand
                     if stra == -1 {
                         if cod > 1 {
-                            println!(
-                                "reverse strand coding start more than one {:?}",
-                                &iterablecount
-                            );
+                            //println!("reverse strand coding start more than one {:?}",
+                            //    &iterablecount
+                            //);
                             if sto < record.sequence.len() {
                                 sliced_sequence = &record.sequence[sta + cod..sto + 1];
                             } else {
                                 sliced_sequence = &record.sequence[sta + cod..sto];
                             }
                         } else {
-                            println!("record sta {:?} sto {:?} cod {:?} stra {:?} record.seq length {:?}", &sta, &sto, &cod, &stra, &record.sequence.len());
-                            println!(
-                                "sliced sta {:?} sliced sto {:?} record.id {:?}",
-                                sta, sto, &record.id
-                            );
-                            println!(
+                            //println!("record sta {:?} sto {:?} cod {:?} stra {:?} record.seq length {:?}", &sta, &sto, &cod, &stra, &record.sequence.len());
+                            //println!(
+                             //   "sliced sta {:?} sliced sto {:?} record.id {:?}",
+                             //   sta, sto, &record.id
+                             //);
+                            //println!(
                                 "iterable count is {:?} reverse strand codon start one",
                                 &iterablecount
-                            );
-                            println!("this is the sequence len {:?}", &record.sequence.len());
+                             //);
+                            //println!("this is the sequence len {:?}", &record.sequence.len());
                             if sto < record.sequence.len() {
                                 sliced_sequence = &record.sequence[sta..sto + 1];
                             } else {
                                 sliced_sequence = &record.sequence[sta..sto];
                             }
-                            println!("iterable count after is {:?}", &iterablecount);
+                            //println!("iterable count after is {:?}", &iterablecount);
                         }
                         let cds_char = sliced_sequence;
                         let prot_seq = translate(&revcomp(cds_char.as_bytes()));
                         let parts: Vec<&str> = prot_seq.split('*').collect();
-                        println!("this is the prot_seq {:?}", &prot_seq);
+                        //println!("this is the prot_seq {:?}", &prot_seq);
                         record
                             .seq_features
                             .set_counter(key.to_string())
