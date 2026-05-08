@@ -1094,10 +1094,10 @@ pub fn format_translation(translation: &str) -> String {
             "                     {}",
             &cleaned_translation[i..valid_end]
         ));
-        println!(
-            "cleaned translation leng is {:?}",
-            &cleaned_translation[i..valid_end].len()
-        );
+        //println!(
+          //  "cleaned translation leng is {:?}",
+        //    &cleaned_translation[i..valid_end].len()
+                //);
         if cleaned_translation[i..valid_end].len() < 59 {
             formatted.push('\"');
         } else {
