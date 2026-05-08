@@ -1,1 +1,1 @@
-{"regressions": [["bench_pipeline.PipelineSuite.track_energy('rust', 'pipeline')", "graphs/biopython/branch-main/codecarbon/machine-github-runner/maturin/python-3.12/bench_pipeline.PipelineSuite.track_energy.json", {}, 1, 1.27312610975, 1.1962977192100004, [[353, 381, 1.1962977192100004, 1.27312610975]]]]}
+{"regressions": []}
