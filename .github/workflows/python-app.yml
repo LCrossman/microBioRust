@@ -44,7 +44,7 @@ jobs:
         # stop the build for critical errors (E9, F63, F7, F82 equivalents)
         ruff check microbiorust-py/ --select E9,F63,F7,F82 --output-format=full
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        ruff check microbiorust-py/ --exit-zero --max-complexity=10 --line-length=127
+        ruff check microbiorust-py/ --exit-zero --line-length=127
         
     - name: Test with pytest
       run: |
