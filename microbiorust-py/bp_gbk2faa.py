@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from Bio import SeqIO
-from Bio.Seq import Seq
 
 
 genbank_file = open("Rhiz3841.gbk.gb",'r')

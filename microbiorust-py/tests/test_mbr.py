@@ -1,7 +1,5 @@
 import os
-import tempfile
 import textwrap
-from pathlib import Path
 
 import microbiorust
 import pytest

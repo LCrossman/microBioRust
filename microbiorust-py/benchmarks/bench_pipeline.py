@@ -87,7 +87,7 @@ class PipelineSuite:
               tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level="CRITICAL", country_iso_code="USA")
               tracker.start()
               
-              result = None
+              #result = None
               try:
                    self._run_repeatedly(engine, context, iterations)
               finally:
