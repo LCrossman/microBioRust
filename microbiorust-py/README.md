@@ -14,7 +14,7 @@ pip install microbiorust
 
 Wheels are available for Linux, macOS and Windows (Python 3.10+). No Rust toolchain required.
 (no requirement to install Rust)
-
+ 
 ### Build from source
 
 If you prefer to build from source using [maturin](https://maturin.rs):
