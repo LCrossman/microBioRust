@@ -1,5 +1,5 @@
 # microbiorust 🦀
-
+ 
 **Python bindings for [microBioRust](https://github.com/microBioRust/microBioRust) — a high-performance, modular bioinformatics toolkit written in Rust.**
 
 `microbiorust` provides fast and memory-efficient bioinformatics functionality to Python users by leveraging the power of Rust, exposed through [PyO3](https://github.com/PyO3/pyo3). This package aims to offer an alternative to libraries like Biopython, with a focus on speed, correctness, and extensibility.
