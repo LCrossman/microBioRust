@@ -28,7 +28,7 @@ default = []
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
-microBioRust = { path = "../microBioRust" }
+microBioRust = "0.1.4"
 microBioRust-seqmetrics = "0.1.3"
 pythonize = "0.26"
 pyo3-stub-gen = "0.17.2" 
