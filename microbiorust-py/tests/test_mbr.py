@@ -1,3 +1,4 @@
+import json
 import os
 import textwrap
 
@@ -91,10 +92,12 @@ def test_gbk_loader_aliases(mock_gbk):
     for load_func in loaders:
         collection = load_func(mock_gbk)
         keys = list(collection.keys())
-        
+
         # This checks if "source_1" is either the key itself (FNA)
         # or the prefix of the key (FAA/FFN)
-        assert any(k.startswith("source_1") for k in keys), f"Failed on {load_func.__name__}"
+        assert any(k.startswith("source_1") for k in keys), (
+            f"Failed on {load_func.__name__}"
+        )
         assert len(collection.keys()) > 0
 
 
@@ -132,16 +135,22 @@ def test_sequence_getitem(mock_gbk):
     first_key = list(collection.keys())[0]
     rec = collection[first_key]
     assert "source_1" in rec.id()
-
-    # This triggers rec.__getitem__ to return a PySequenceInfo
+    # this triggers rec.__getitem__ to return a PySequenceInfo
     sequence_collection = rec.sequences()
-    all_proteins = [
-        sequence_collection[tag].faa
-        for tag in sequence_collection
-        if sequence_collection[tag].faa
-    ]
+
+    # check __getitem__ works directly
+    first_tag = list(sequence_collection.keys())[0]
+    first_seq = sequence_collection[first_tag]
+    assert first_seq is not None
+
+    # use of values()
+    all_proteins = [info.faa for info in sequence_collection.values() if info.faa]
     assert len(all_proteins) > 0
     print("len ", len(all_proteins))
+
+    # check items() gives consistent key-value pairs
+    for tag, info in sequence_collection.items():
+        assert sequence_collection[tag].faa == info.faa
 
 
 def test_embl_loader_integration():
@@ -183,6 +192,125 @@ def test_gbk_to_gff(mock_gbk):
     assert os.path.exists(gff_path)
     with open(gff_path, "r") as f:
         assert "source_source_1_1" in f.read()
+
+
+def test_faa_no_ffn_attribute(mock_gbk):
+    """PyFaaInfo should not have ffn, PyFfnInfo should not have faa - clean types."""
+    faa_collection = microbiorust.gbk_to_faa(mock_gbk)
+    ffn_collection = microbiorust.gbk_to_ffn(mock_gbk)
+
+    faa_info = list(faa_collection.values())[0]
+    ffn_info = list(ffn_collection.values())[0]
+
+    assert hasattr(faa_info, "faa")
+    assert not hasattr(faa_info, "ffn")
+
+    assert hasattr(ffn_info, "ffn")
+    assert not hasattr(ffn_info, "faa")
+
+
+def test_collection_len_and_contains(mock_gbk):
+    """Test __len__ and __contains__ on all collection types."""
+    collection = microbiorust.parse_gbk(mock_gbk)
+    assert len(collection) == 1  # one record in mock
+
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
+
+    feat_col = record.features()
+    assert len(feat_col) == 2  # b3304 and b3305
+    assert "b3304" in feat_col
+    assert "b3305" in feat_col
+    assert "fake" not in feat_col
+
+    faa_col = record.faa()
+    assert len(faa_col) == 2
+    assert any("b3304" in k for k in faa_col.keys())
+
+
+def test_collection_to_json(mock_gbk):
+    """Test that Collections successfully serialize to valid JSON strings."""
+    collection = microbiorust.parse_gbk(mock_gbk)
+    # test RecordCollection serialization
+    record_json_str = collection.to_json()
+    assert isinstance(record_json_str, str)
+    # verify it parses into a native Python dictionary
+    record_dict = json.loads(record_json_str)
+    assert len(record_dict) > 0
+    # test a sub-collection (FaaCollection) serialization
+    first_key = list(collection.keys())[0]
+    faa_collection = collection[first_key].faa()
+    faa_json_str = faa_collection.to_json()
+    assert isinstance(faa_json_str, str)
+    faa_dict = json.loads(faa_json_str)
+    assert len(faa_dict) > 0
+
+
+def test_collection_keyerror_message(mock_gbk):
+    """Verify KeyError message is helpful and contains the requested tag."""
+    collection = microbiorust.parse_gbk(mock_gbk)
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
+    faa_collection = record.faa()
+
+    bad_tag = "totally_fake_tag"
+    with pytest.raises(KeyError) as exc_info:
+        _ = faa_collection[bad_tag]
+    # error message should contain the tag name and a hint
+    assert bad_tag in str(exc_info.value)
+    assert "keys()" in str(exc_info.value)
+
+
+def test_gbk_to_ffn_returns_ffn_collection(mock_gbk):
+    """Test gbk_to_ffn returns FfnCollection not SequenceCollection."""
+    ffn_collection = microbiorust.gbk_to_ffn(mock_gbk)
+
+    assert len(ffn_collection) > 0
+    values = list(ffn_collection.values())
+    assert all(hasattr(v, "ffn") for v in values)
+    assert all(v.ffn is not None for v in values)
+    # ffn should not have faa attribute
+    assert not hasattr(values[0], "faa")
+
+
+def test_gbk_to_faa_returns_faa_collection(mock_gbk):
+    """Test gbk_to_faa returns FaaCollection not SequenceCollection."""
+    faa_collection = microbiorust.gbk_to_faa(mock_gbk)
+
+    assert len(faa_collection) > 0
+
+    # verify values() items() keys() all work
+    values = list(faa_collection.values())
+    assert len(values) > 0
+    assert all(hasattr(v, "faa") for v in values)
+    assert all(hasattr(v, "locus_tag") for v in values)
+    # faa is non-Optional - should never be None
+    assert all(v.faa is not None for v in values)
+
+    # items() consistency
+    for tag, info in faa_collection.items():
+        assert faa_collection[tag].faa == info.faa
+
+    # __contains__
+    first_key = list(faa_collection.keys())[0]
+    assert first_key in faa_collection
+    assert "definitely_not_a_real_tag" not in faa_collection
+
+
+def test_record_faa_method(mock_gbk):
+    """Test record.faa() returns FaaCollection of PyFaaInfo with non-Optional faa."""
+    collection = microbiorust.parse_gbk(mock_gbk)
+    first_key = list(collection.keys())[0]
+    record = collection[first_key]
+
+    faa_collection = record.faa()
+    assert len(faa_collection) > 0
+
+    # values are PyFaaInfo - faa is String not Optional
+    for info in faa_collection.values():
+        assert info.locus_tag is not None
+        assert info.faa is not None
+        assert len(info.faa) > 0
 
 
 # tests for multiple sequence alignment
