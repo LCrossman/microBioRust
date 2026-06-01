@@ -2,7 +2,7 @@ use microBioRust::embl::Reader;
 use std::fs;
 #[test]
 pub fn embl_to_ffn() -> Result<(), anyhow::Error> {
-    let file_embl = fs::File::open("example.embl")?;
+    let file_embl = fs::File::open("tests/example.embl")?;
     let reader = Reader::new(file_embl);
     let mut records = reader.records();
     let mut read_counter: u32 = 0;

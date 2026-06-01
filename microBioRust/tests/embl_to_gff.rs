@@ -1,10 +1,10 @@
-use microBioRust::embl::{gff_write, Reader, Record};
+use microBioRust::embl::{Reader, Record, gff_write};
 use std::collections::BTreeMap;
 use std::fs;
 
 #[test]
 fn test_embl_to_gff() -> std::io::Result<()> {
-    let file_embl = fs::File::open("example.embl")?;
+    let file_embl = fs::File::open("tests/example.embl")?;
     let reader = Reader::new(file_embl);
     let mut records = reader.records();
     let mut read_counter: u32 = 0;
