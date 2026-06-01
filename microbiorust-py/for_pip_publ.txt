@@ -1,0 +1,9 @@
+And only add abi3 in your release CI/workflow:
+maturin build --release --features abi3
+
+So the full matrix is:
+Who	Command	abi3	
+Dev cloning from GitHub	maturin develop	❌ no linking issues
+You releasing to PyPI	maturin build --release --features abi3	✅ broad wheel
+pip user	pre-built wheel	✅ already baked in
+cargo test	cargo test	❌ tests work
