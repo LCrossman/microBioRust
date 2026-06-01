@@ -2,7 +2,7 @@ import os
 import time
 import subprocess
 from Bio import SeqIO
-from microbiorust import gbk
+import microbiorust as mb
  
 
 #warnings.simplefilter('ignore', BioPythonWarning)
@@ -41,7 +41,7 @@ class PipelineSuite:
     def _run_once(self, engine, context):
         if context == 'interactive':
             if engine == 'rust':
-                return gbk.gbk_to_faa_count(self.filepath)
+                return mb.gbk_to_faa_count(self.filepath)
             else:
              count = 0
             for record in SeqIO.parse(self.filepath, "genbank"):
@@ -87,7 +87,7 @@ class PipelineSuite:
               tracker = OfflineEmissionsTracker(measure_power_secs=0.1, log_level="CRITICAL", country_iso_code="USA")
               tracker.start()
               
-              result = None
+              #result = None
               try:
                    self._run_repeatedly(engine, context, iterations)
               finally:

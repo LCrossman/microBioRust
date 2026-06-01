@@ -1,5 +1,4 @@
 import sys
-import os
 from Bio import SeqIO
 
 def main():

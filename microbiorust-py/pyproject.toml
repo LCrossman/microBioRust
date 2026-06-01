@@ -31,6 +31,23 @@ Repository = "https://github.com/microBioRust/microBioRust"
 [tool.maturin]
 manifest-path = "Cargo.toml"
 bindings = "pyo3"
-module-name = "microbiorust"
+module-name = "microbiorust._microbiorust"
 python-source = "."
-features = ["pyo3/extension-module", "pyo3/abi3-py310"]
+features = ["pyo3/extension-module"]
+include = [
+   "microbiorust/*.pyi",
+   "microbiorust/py.typed"
+]
+exclude = ["src/bin/*", "benchmarks/*", "tests/*"]
+
+[tool.ruff]
+line-length = 127
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F403", "F405"]
+
+[tool.ruff.lint]
+select = ["E", "F", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
