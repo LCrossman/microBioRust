@@ -44,7 +44,7 @@ include = [
    "microbiorust/*.pyi",
    "microbiorust/py.typed"
 ]
-exclude = ["src/bin/*", "benchmarks/*", "tests/*"]
+exclude = ["src/bin/*", "*.embl", "*.gb", "*.gff", "*.faa", "asv.conf.json", "rust_via*.py", "bp_gbk2faa.py", "*.svg", "for_pip_publ.txt", "*.bak","benchmarks/*", "tests/*", ".github/*", "docs/*", ".gitignore"]
 
 [tool.ruff]
 line-length = 127
