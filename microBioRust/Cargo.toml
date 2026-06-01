@@ -29,6 +29,10 @@ path = "src/lib.rs"
 name = "blast-example"
 path = "examples/blast_parse.rs"
 
+[[example]]
+name = "convert-to-faa"
+path = "examples/convert_to_faa.rs"
+
 [dependencies]
 clap = { version = "4.5.19", features = ["derive"] }
 paste = "1.0"
