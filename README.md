@@ -25,9 +25,9 @@ Questions and comments - please join the Discord server :) [here](https://discor
 
 Currently there is functionality for:<br>
 ````
- 1. A Genbank to GFF parser
+ 1. A Genbank parser and conversions to GFF, protein fasta (faa), DNA sequence (.fna), Gene sequence (.ffn) parser, JSON
 
- 2. An Embl to GFF and GBK parser
+ 2. An Embl parser and conversions to GFF or GBK , .faa, .fna, .ffn, JSON
 
  3. Parsing of multiple sequence alignments
 
