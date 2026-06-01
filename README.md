@@ -3,7 +3,7 @@
 
 [![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://lcrossman.github.io/microBioRust-docs)
 
-![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2FmicroBioRust)  
+[![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat)](https://crates.io/crates/microBioRust)
 
 See the microbiorust-py benchmarks with airspeed velocity:  
 [![Benchmarks](https://img.shields.io/badge/benchmarks-passing-brightgreen)](https://lcrossman.github.io/microBioRust/)
