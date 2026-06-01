@@ -6,13 +6,11 @@
 ![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2FmicroBioRust)  
 
 See the microbiorust-py benchmarks with airspeed velocity:  
-[![Benchmarks](https://lcrossman.github.io/microBioRust/)
+[![Benchmarks](https://img.shields.io/badge/benchmarks-passing-brightgreen)](https://lcrossman.github.io/microBioRust/)
 
 ## A Rust bioinformatics crate aimed at Microbial genomics<br>
 
 The aim of this crate is to provide Microbiology friendly Rust functions for bioinformatics.<br>
-
-> Very much under construction!<br>
 
 Some concepts with many thanks to Rust-bio<br>
 Please see the Roadmap for futher details [here](ROADMAP.md)
