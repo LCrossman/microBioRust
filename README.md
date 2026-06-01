@@ -1,16 +1,16 @@
 <img src="assets/MICROBIO B.svg#gh-light-mode-only" alt="microBioRust logo light mode" width="200">
 <img src="assets/BIO W.png#gh-dark-mode-only" alt="microBioRust logo dark mode" width="200">
 
-[![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://lcrossman.github.io/microBioRust-docs/)
+[![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://lcrossman.github.io/microBioRust-docs)
 
-![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2FmicroBioRust)
+[![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat)](https://crates.io/crates/microBioRust)
 
+See the microbiorust-py benchmarks with airspeed velocity:  
+[![Benchmarks](https://img.shields.io/badge/benchmarks-passing-brightgreen)](https://lcrossman.github.io/microBioRust/)
 
 ## A Rust bioinformatics crate aimed at Microbial genomics<br>
 
 The aim of this crate is to provide Microbiology friendly Rust functions for bioinformatics.<br>
-
-> Very much under construction!<br>
 
 Some concepts with many thanks to Rust-bio<br>
 Please see the Roadmap for futher details [here](ROADMAP.md)
@@ -25,9 +25,9 @@ Questions and comments - please join the Discord server :) [here](https://discor
 
 Currently there is functionality for:<br>
 ````
- 1. A Genbank to GFF parser
+ 1. A Genbank parser and conversions to GFF, protein fasta (faa), DNA sequence (.fna), Gene sequence (.ffn) parser, JSON
 
- 2. An Embl to GFF and GBK parser
+ 2. An Embl parser and conversions to GFF or GBK , .faa, .fna, .ffn, JSON
 
  3. Parsing of multiple sequence alignments
 
