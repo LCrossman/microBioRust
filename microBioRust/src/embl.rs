@@ -269,6 +269,7 @@ use chrono::prelude::*;
 use lazy_static::lazy_static;
 use paste::paste;
 use protein_translate::translate;
+use serde::Serialize;
 use regex::Regex;
 use std::{
     collections::{BTreeMap, HashSet},
@@ -799,7 +800,7 @@ where
 pub use crate::record::RangeValue;
 
 ///stores the details of the source features in genbank (contigs)
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Serialize, Eq, PartialEq, Hash, Clone)]
 pub enum SourceAttributes {
     Start { value: RangeValue },
     Stop { value: RangeValue },
@@ -827,7 +828,7 @@ create_getters!(
 );
 
 ///builder for the source information on a per record basis
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Serialize, Default, Clone)]
 pub struct SourceAttributeBuilder {
     pub source_attributes: BTreeMap<String, HashSet<SourceAttributes>>,
     pub source_name: Option<String>,
@@ -874,7 +875,7 @@ create_builder!(
 );
 
 ///attributes for each feature, cds or gene
-#[derive(Debug, Eq, Hash, PartialEq, Clone)]
+#[derive(Debug, Serialize, Eq, Hash, PartialEq, Clone)]
 pub enum FeatureAttributes {
     Start { value: RangeValue },
     Stop { value: RangeValue },
@@ -898,7 +899,7 @@ create_getters!(
 );
 
 ///builder for the feature information on a per coding sequence (CDS) basis
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Serialize, Default, Clone)]
 pub struct FeatureAttributeBuilder {
     pub attributes: BTreeMap<String, HashSet<FeatureAttributes>>,
     locus_tag: Option<String>,
@@ -918,7 +919,7 @@ create_builder!(
 );
 
 ///stores the sequences of the coding sequences (genes) and proteins. Also stores start, stop, codon_start and strand information
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Serialize, Eq, PartialEq, Hash, Clone)]
 pub enum SequenceAttributes {
     Start { value: RangeValue },
     Stop { value: RangeValue },
@@ -941,7 +942,7 @@ create_getters!(
 );
 
 ///builder for the sequence information on a per coding sequence (CDS) basis
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Serialize, Default, Clone)]
 pub struct SequenceAttributeBuilder {
     pub seq_attributes: BTreeMap<String, HashSet<SequenceAttributes>>,
     locus_tag: Option<String>,
@@ -972,7 +973,7 @@ pub fn substitute_odd_punctuation(input: String) -> Result<String, anyhow::Error
 }
 
 ///GFF3 field9 construct
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct GFFInner {
     id: String,
     name: String,
@@ -1007,7 +1008,7 @@ impl GFFInner {
 }
 
 ///The main GFF3 construct
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct GFFOuter<'a> {
     seqid: String,
     source: String,
@@ -1409,7 +1410,7 @@ pub fn gff_write(
 
 ///internal record containing data from a single source or contig.  Has multiple features.
 //sets up a record
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Record {
     pub id: String,
     pub length: u32,

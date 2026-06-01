@@ -1,9 +1,10 @@
 ///Shared generic record types to reduce duplication between gbk and embl
 ///Minimal initial introduction: defines generic containers and builders that mirror the existing API where possible
 
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Serialize, Debug, PartialEq, Eq, Hash)]
 pub enum RangeValue {
     Exact(u32),
     LessThan(u32),
@@ -28,7 +29,7 @@ pub trait HasStartStopStrand {
 }
 
 ///Generic attribute builders
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Serialize, Debug, Default)]
 pub struct AttributeBuilder<K, V> {
     pub name: Option<String>,
     pub attributes: HashMap<K, HashSet<V>>,
@@ -48,7 +49,7 @@ where
 }
 
 ///Generic record and records container
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Serialize, Debug, Default)]
 pub struct GenericRecord<S, F, Q> {
     pub id: String,
     pub seq: String,
