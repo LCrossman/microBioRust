@@ -14,7 +14,7 @@ categories = [
 ]
 readme = "README.md"
 authors = ["Lisa Crossman and microBioRust community"]
-exclude = [".git", ".gitignore", ".dribble.example.embl", "tests/data/"]
+exclude = [".git", ".gitignore", ".dribble.example.embl", "tests/data/", "src/bin","config.toml","K12_ribo.gbk","Rhiz3841.gbk.gb","Rhiz3841.gbk.gb_out.faa","rust_via_python_countgbk2faa.py","rust_via_python_gbk2faa.py","asv.conf.json","benchmarks/"]
 repository = "https://github.com/microBioRust/microBioRust"
 documentation = "https://microbiorust.github.io/docs/"
 

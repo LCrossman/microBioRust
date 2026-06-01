@@ -263,14 +263,14 @@
 //!```
 //!
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
 use chrono::prelude::*;
 use lazy_static::lazy_static;
 use paste::paste;
 use protein_translate::translate;
-use serde::Serialize;
 use regex::Regex;
+use serde::Serialize;
 use std::{
     collections::{BTreeMap, HashSet},
     convert::{AsRef, TryInto},
@@ -600,8 +600,8 @@ where
                         //println!("designated codon start {:?} {:?}", &codon_start, &locus_tag);
                     }
                     if self.line_buffer.contains("/gene=") {
-                        let gen: Vec<&str> = self.line_buffer.split('\"').collect();
-                        gene = gen[1].to_string();
+                        let genes: Vec<&str> = self.line_buffer.split('\"').collect();
+                        gene = genes[1].to_string();
                         //println!("gene designated {:?} {:?}", &gene, &locus_tag);
                     }
                     if self.line_buffer.contains("/product") {

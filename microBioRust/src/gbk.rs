@@ -126,7 +126,7 @@
 //!        let mut read_counter: u32 = 0;
 //!        let mut seq_region: BTreeMap<String, (u32,u32)> = BTreeMap::new();
 //!        let mut record_vec: Vec<Record> = Vec::new();
-//!        loop {  
+//!        loop {
 //!            match records.next() {
 //!                Some(Ok(mut record)) => {
 //!	               println!("next record");
@@ -275,7 +275,7 @@
 //!```
 //!
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
 use chrono::prelude::*;
 use itertools::Itertools;
@@ -681,8 +681,8 @@ where
                         //println!("designated codon start {:?} {:?}", &codon_start, &locus_tag);
                     }
                     if self.line_buffer.contains("/gene=") {
-                        let gen: Vec<&str> = self.line_buffer.split('\"').collect();
-                        gene = gen[1].to_string();
+                        let genes: Vec<&str> = self.line_buffer.split('\"').collect();
+                        gene = genes[1].to_string();
                         //println!("gene designated {:?} {:?}", &gene, &locus_tag);
                     }
                     if self.line_buffer.contains("/product") {
