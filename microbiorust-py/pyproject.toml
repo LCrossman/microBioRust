@@ -12,17 +12,23 @@ authors = [
     { name = "LCrossman" },
     { name = "microBioRust Community" }
 ]
+keywords = ["bioinformatics", "genomics", "microbial genomics", "bacteria", "genbank", "embl", "gff3", "microbiorust", "rust"]
 description = "Python bindings for microbiorust, Microbiology friendly bioinformatics functions"
 classifiers = [
     "Programming Language :: Rust",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "License :: OSI Approved :: MIT License",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
 ]
+license = {file = "LICENSE"}
+
 [project.urls]
 Homepage = "https://microbiorust.github.io/docs/"
 Repository = "https://github.com/microBioRust/microBioRust"
@@ -38,7 +44,7 @@ include = [
    "microbiorust/*.pyi",
    "microbiorust/py.typed"
 ]
-exclude = ["src/bin/*", "benchmarks/*", "tests/*"]
+exclude = ["src/bin/*", "*.embl", "*.gb", "*.gff", "*.faa", "asv.conf.json", "rust_via*.py", "bp_gbk2faa.py", "*.svg", "for_pip_publ.txt", "*.bak","benchmarks/*", "tests/*", ".github/*", "docs/*", ".gitignore"]
 
 [tool.ruff]
 line-length = 127

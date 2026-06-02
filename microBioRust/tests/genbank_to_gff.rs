@@ -1,10 +1,10 @@
-use microBioRust::gbk::{gff_write, Reader, Record};
+use microBioRust::gbk::{Reader, Record, gff_write};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 #[test]
 pub fn genbank_to_gff() -> io::Result<()> {
-    let file_gbk = fs::File::open("K12_ribo.gbk")?;
+    let file_gbk = fs::File::open("tests/K12_ribo.gbk")?;
     let _prev_start: u32 = 0;
     let mut prev_end: u32 = 0;
     let reader = Reader::new(file_gbk);

@@ -12,6 +12,11 @@
 pip install microbiorust
 ```
 
+to use the Python tests with pytest
+```bash
+python3 -m pytest -s tests/test_mbr.py
+```
+
 Wheels are available for Linux, macOS and Windows (Python 3.10+). No Rust toolchain required.
 (no requirement to install Rust)
  
@@ -31,6 +36,7 @@ To verify the Python module functions are correctly exposed from Rust:
 ```bash
 cargo test
 ```
+
 
 ---
 

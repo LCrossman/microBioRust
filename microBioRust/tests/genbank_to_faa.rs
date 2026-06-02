@@ -2,7 +2,7 @@ use microBioRust::gbk::Reader;
 use std::fs;
 #[test]
 pub fn genbank_to_faa() -> Result<(), anyhow::Error> {
-    let file_gbk = fs::File::open("K12_ribo.gbk")?;
+    let file_gbk = fs::File::open("tests/K12_ribo.gbk")?;
     let reader = Reader::new(file_gbk);
     let mut records = reader.records();
     let mut read_counter: u32 = 0;
