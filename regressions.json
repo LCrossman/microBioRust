@@ -1,1 +1,1 @@
-{"regressions": []}
+{"regressions": [["bench_pipeline.PipelineSuite.peakmem_process_all('rust', 'interactive')", "graphs/biopython/branch-main/codecarbon/machine-github-runner/maturin/python-3.12/bench_pipeline.PipelineSuite.peakmem_process_all.json", {}, 0, 85929984.0, 72413184.0, [[430, 437, 72413184.0, 85929984.0]]]]}
