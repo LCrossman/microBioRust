@@ -126,7 +126,7 @@
 //!        let mut read_counter: u32 = 0;
 //!        let mut seq_region: BTreeMap<String, (u32,u32)> = BTreeMap::new();
 //!        let mut record_vec: Vec<Record> = Vec::new();
-//!        loop {  
+//!        loop {
 //!            match records.next() {
 //!                Some(Ok(mut record)) => {
 //!	               println!("next record");
@@ -275,7 +275,7 @@
 //!```
 //!
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
 use chrono::prelude::*;
 use itertools::Itertools;
@@ -681,8 +681,8 @@ where
                         //println!("designated codon start {:?} {:?}", &codon_start, &locus_tag);
                     }
                     if self.line_buffer.contains("/gene=") {
-                        let gen: Vec<&str> = self.line_buffer.split('\"').collect();
-                        gene = gen[1].to_string();
+                        let genes: Vec<&str> = self.line_buffer.split('\"').collect();
+                        gene = genes[1].to_string();
                         //println!("gene designated {:?} {:?}", &gene, &locus_tag);
                     }
                     if self.line_buffer.contains("/product") {
@@ -1732,7 +1732,7 @@ mod tests {
     #[allow(unused_assignments)]
     #[allow(unused_imports)]
     fn test_read_file() {
-        let content = std::fs::read_to_string("K12_ribo.gbk").expect("error reading file");
+        let content = std::fs::read_to_string("tests/K12_ribo.gbk").expect("error reading file");
         assert!(content.contains("LOCUS"));
         assert!(content.len() > 0);
     }
@@ -1743,7 +1743,7 @@ mod tests {
     #[allow(unused_assignments)]
     #[allow(unused_imports)]
     fn test_parse_gbk() {
-        let file_gbk = "K12_ribo.gbk";
+        let file_gbk = "tests/K12_ribo.gbk";
         let records = genbank!(&file_gbk);
         assert!(records.len() > 0);
     }
@@ -1754,7 +1754,7 @@ mod tests {
     #[allow(unused_assignments)]
     #[allow(unused_imports)]
     fn test_parse_source_attributes() {
-        let file_gbk = "K12_ribo.gbk";
+        let file_gbk = "tests/K12_ribo.gbk";
         let records = genbank!(&file_gbk);
         if let Some(record) = records.first() {
             if let Some((key, val)) = record.source_map.source_attributes.first_key_value() {
@@ -1769,7 +1769,7 @@ mod tests {
     #[allow(unused_assignments)]
     #[allow(unused_imports)]
     fn test_parse_cds_attributes() {
-        let file_gbk = "K12_ribo.gbk";
+        let file_gbk = "tests/K12_ribo.gbk";
         let records = genbank!(&file_gbk);
         if let Some(record) = records.first() {
             if let Some((locus_tag, vals)) = record.cds.attributes.first_key_value() {
@@ -1788,7 +1788,7 @@ mod tests {
     #[allow(unused_assignments)]
     #[allow(unused_imports)]
     fn test_parse_sequence_attributes() {
-        let file_gbk = "K12_ribo.gbk";
+        let file_gbk = "tests/K12_ribo.gbk";
         let records = genbank!(&file_gbk);
         if let Some(record) = records.first() {
             if let Some((key, vals)) = record.cds.attributes.first_key_value() {

@@ -1,17 +1,15 @@
-use anyhow::{Context, Result};
-use async_compression::tokio::bufread::GzipDecoder as AsyncGzDecoder;
+use anyhow::Result;
 use clap::Parser;
-use quick_xml::events::Event;
-use quick_xml::reader::Reader;
-use quick_xml::escape::unescape;
-use serde::Serialize;
-use serde_json::ser::Serializer as JsonSerializer;
 use microBioRust::blast::*;
-use std::io::Cursor;
-use tokio::io::{self, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
+use tokio::io::AsyncWriteExt;
 
 #[derive(Parser, Debug)]
-#[command(name = "blast-parsers", author, version, about = "async microBioRust BLAST parsers: for outfmt6 (single line tabular) and outfmt5 (xml)")]
+#[command(
+    name = "blast-parsers",
+    author,
+    version,
+    about = "async microBioRust BLAST parsers: for outfmt6 (single line tabular) and outfmt5 (xml)"
+)]
 struct Cli {
     ///Use .gz for gzip-compressed files.
     #[arg(short, long, default_value = "-")]
@@ -44,7 +42,11 @@ async fn main() -> Result<()> {
                         buf.push(b'\n');
                         tokio::io::stdout().write_all(&buf).await?;
                     } else {
-                        println!("query {:?} hits {}", iter_rec.query_def, iter_rec.hits.len());
+                        println!(
+                            "query {:?} hits {}",
+                            iter_rec.query_def,
+                            iter_rec.hits.len()
+                        );
                     }
                 }
                 Err(e) => eprintln!("xml parse error: {}", e),
