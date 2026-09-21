@@ -263,6 +263,11 @@
 //!```
 //!
 
+pub use crate::record::RangeValue;
+pub use crate::record::{
+    FeatureAttributeBuilder, FeatureAttributes, Record, RecordRead, Records,
+    SequenceAttributeBuilder, SequenceAttributes, SourceAttributeBuilder, SourceAttributes,
+};
 use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
 use chrono::prelude::*;
@@ -272,7 +277,7 @@ use protein_translate::translate;
 use regex::Regex;
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashSet, btree_map},
     convert::{AsRef, TryInto},
     fs::{self, File, OpenOptions},
     io::{self, Write},
@@ -322,84 +327,22 @@ macro_rules! embl {
 
 //const MAX_EMBL_BUFFER_SIZE: usize = 512;
 /// An EMBL reader.
-
-#[derive(Debug)]
-pub struct Records<B>
-where
-    B: io::BufRead,
-{
-    reader: Reader<B>,
-    error_has_occurred: bool,
-}
-
-impl<B> Records<B>
-where
-    B: io::BufRead,
-{
-    #[allow(unused_mut)]
-    pub fn new(mut reader: Reader<B>) -> Self {
-        Records {
-            reader,
-            error_has_occurred: false,
-        }
-    }
-}
-
-impl<B> Iterator for Records<B>
-where
-    B: io::BufRead,
-{
-    type Item = Result<Record, anyhow::Error>;
-
-    fn next(&mut self) -> Option<Result<Record, anyhow::Error>> {
-        if self.error_has_occurred {
-            println!("error was encountered in iteration");
-            None
-        } else {
-            let mut record = Record::new();
-            match self.reader.read(&mut record) {
-                Ok(_) => {
-                    if record.is_empty() {
-                        None
-                    } else {
-                        Some(Ok(record))
-                    }
-                }
-                Err(err) => {
-                    //println!("we encountered an error {:?}", &err);
-                    self.error_has_occurred = true;
-                    Some(Err(anyhow!("next record read error {:?}", err)))
-                }
-            }
-        }
-    }
-}
-
-pub trait EmblRead {
-    fn read(&mut self, record: &mut Record) -> Result<Record, anyhow::Error>;
-}
-
-///per line reader for the file
 #[derive(Debug, Default)]
 pub struct Reader<B> {
     reader: B,
-    line_buffer: String,
+    line_buffer: String, // GBK-specific — EMBL reader will have its own
 }
 
+// constructors — GBK specific paths and error messages
 impl Reader<io::BufReader<fs::File>> {
-    /// Read Embl from given file path in given format.
     pub fn from_file<P: AsRef<Path> + std::fmt::Debug>(path: P) -> anyhow::Result<Self> {
         fs::File::open(&path)
             .map(Reader::new)
-            .with_context(|| format!("Failed to read Embl from {:#?}", path))
+            .with_context(|| format!("Failed to read EMBL from {:#?}", path))
     }
 }
 
-impl<R> Reader<io::BufReader<R>>
-where
-    R: io::Read,
-{
-    //// Create a new Embl reader given an instance of `io::Read` in given format
+impl<R: io::Read> Reader<io::BufReader<R>> {
     pub fn new(reader: R) -> Self {
         Reader {
             reader: io::BufReader::new(reader),
@@ -408,30 +351,21 @@ where
     }
 }
 
-impl<B> Reader<B>
-where
-    B: io::BufRead,
-{
+impl<B: io::BufRead> Reader<B> {
     pub fn from_bufread(bufreader: B) -> Self {
         Reader {
             reader: bufreader,
             line_buffer: String::new(),
         }
     }
-    //return an iterator over the records of the genbank file
-    pub fn records(self) -> Records<B> {
-        Records {
-            reader: self,
-            error_has_occurred: false,
-        }
+    // returns the generic Records iterator from record.rs
+    pub fn records(self) -> Records<Self> {
+        Records::new(self)
     }
 }
 
 ///main embl parser
-impl<'a, B> EmblRead for Reader<B>
-where
-    B: io::BufRead,
-{
+impl<B: io::BufRead> RecordRead for Reader<B> {
     #[allow(unused_mut)]
     #[allow(unused_variables)]
     #[allow(unused_assignments)]
@@ -796,170 +730,6 @@ where
         Ok(record.to_owned())
     }
 }
-
-pub use crate::record::RangeValue;
-
-///stores the details of the source features in genbank (contigs)
-#[derive(Debug, Serialize, Eq, PartialEq, Hash, Clone)]
-pub enum SourceAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    CultureCollection { value: String },
-    TypeMaterial { value: String },
-    DbXref { value: String },
-}
-
-//macro for creating the getters
-create_getters!(
-    SourceAttributeBuilder,
-    source_attributes,
-    SourceAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    // CultureCollection { value: String},
-    TypeMaterial { value: String },
-    DbXref { value: String }
-);
-
-///builder for the source information on a per record basis
-#[derive(Debug, Serialize, Default, Clone)]
-pub struct SourceAttributeBuilder {
-    pub source_attributes: BTreeMap<String, HashSet<SourceAttributes>>,
-    pub source_name: Option<String>,
-}
-
-impl SourceAttributeBuilder {
-    // Method to set source name
-    pub fn set_source_name(&mut self, name: String) {
-        self.source_name = Some(name);
-    }
-
-    // Method to get source name
-    pub fn get_source_name(&self) -> Option<&String> {
-        self.source_name.as_ref()
-    }
-
-    // Method to add source attributes
-    pub fn add_source_attribute(&mut self, key: String, attribute: SourceAttributes) {
-        self.source_attributes
-            .entry(key)
-            .or_default()
-            .insert(attribute);
-    }
-
-    // Method to retrieve source attributes for a given key
-    pub fn get_source_attributes(&self, key: &str) -> Option<&HashSet<SourceAttributes>> {
-        self.source_attributes.get(key)
-    }
-}
-
-create_builder!(
-    SourceAttributeBuilder,
-    source_attributes,
-    SourceAttributes,
-    source_name,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    // CultureCollection { value: String},
-    TypeMaterial { value: String },
-    DbXref { value: String }
-);
-
-///attributes for each feature, cds or gene
-#[derive(Debug, Serialize, Eq, Hash, PartialEq, Clone)]
-pub enum FeatureAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 },
-    //   ec_number { value: String }
-}
-
-create_getters!(
-    FeatureAttributeBuilder,
-    attributes,
-    FeatureAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
-);
-
-///builder for the feature information on a per coding sequence (CDS) basis
-#[derive(Debug, Serialize, Default, Clone)]
-pub struct FeatureAttributeBuilder {
-    pub attributes: BTreeMap<String, HashSet<FeatureAttributes>>,
-    locus_tag: Option<String>,
-}
-
-create_builder!(
-    FeatureAttributeBuilder,
-    attributes,
-    FeatureAttributes,
-    locus_tag,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
-);
-
-///stores the sequences of the coding sequences (genes) and proteins. Also stores start, stop, codon_start and strand information
-#[derive(Debug, Serialize, Eq, PartialEq, Hash, Clone)]
-pub enum SequenceAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 },
-}
-
-create_getters!(
-    SequenceAttributeBuilder,
-    seq_attributes,
-    SequenceAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
-);
-
-///builder for the sequence information on a per coding sequence (CDS) basis
-#[derive(Debug, Serialize, Default, Clone)]
-pub struct SequenceAttributeBuilder {
-    pub seq_attributes: BTreeMap<String, HashSet<SequenceAttributes>>,
-    locus_tag: Option<String>,
-}
-
-create_builder!(
-    SequenceAttributeBuilder,
-    seq_attributes,
-    SequenceAttributes,
-    locus_tag,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
-);
 
 ///product lines can contain difficult to parse punctuation such as biochemical symbols like unclosed single quotes, superscripts, single and double brackets etc.
 ///here we substitute these for an underscore
@@ -1406,114 +1176,6 @@ pub fn gff_write(
         writeln!(file, "{}", full_seq)?;
     }
     Ok(())
-}
-
-///internal record containing data from a single source or contig.  Has multiple features.
-//sets up a record
-#[derive(Debug, Serialize, Clone)]
-pub struct Record {
-    pub id: String,
-    pub length: u32,
-    pub sequence: String,
-    pub start: usize,
-    pub end: usize,
-    pub strand: i32,
-    pub cds: FeatureAttributeBuilder,
-    pub source_map: SourceAttributeBuilder,
-    pub seq_features: SequenceAttributeBuilder,
-}
-
-impl Record {
-    /// Create a new instance.
-    pub fn new() -> Self {
-        Record {
-            id: "".to_owned(),
-            length: 0,
-            sequence: "".to_owned(),
-            start: 0,
-            end: 0,
-            strand: 0,
-            source_map: SourceAttributeBuilder::new(),
-            cds: FeatureAttributeBuilder::new(),
-            seq_features: SequenceAttributeBuilder::new(),
-        }
-    }
-    pub fn is_empty(&mut self) -> bool {
-        self.id.is_empty() && self.length == 0
-    }
-    pub fn check(&mut self) -> Result<(), &str> {
-        if self.id().is_empty() {
-            return Err("Expecting id for Embl record.");
-        }
-        Ok(())
-    }
-    pub fn id(&mut self) -> &str {
-        &self.id
-    }
-    pub fn length(&mut self) -> u32 {
-        self.length
-    }
-    pub fn sequence(&mut self) -> &str {
-        &self.sequence
-    }
-    pub fn start(&mut self) -> u32 {
-        self.start.try_into().unwrap()
-    }
-    pub fn end(&mut self) -> u32 {
-        self.end.try_into().unwrap()
-    }
-    pub fn strand(&mut self) -> i32 {
-        self.strand
-    }
-    pub fn cds(&mut self) -> FeatureAttributeBuilder {
-        self.cds.clone()
-    }
-    pub fn source_map(&mut self) -> SourceAttributeBuilder {
-        self.source_map.clone()
-    }
-    pub fn seq_features(&mut self) -> SequenceAttributeBuilder {
-        self.seq_features.clone()
-    }
-    fn rec_clear(&mut self) {
-        self.id.clear();
-        self.length = 0;
-        self.sequence.clear();
-        self.start = 0;
-        self.end = 0;
-        self.strand = 0;
-        self.source_map = SourceAttributeBuilder::new();
-        self.cds = FeatureAttributeBuilder::new();
-        self.seq_features = SequenceAttributeBuilder::new();
-    }
-}
-
-impl Default for Record {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// Provide a type alias and conversion to a generic record to aid interoperability
-pub type GenericRecordEmbl = crate::record::GenericRecord<
-    SourceAttributeBuilder,
-    FeatureAttributeBuilder,
-    SequenceAttributeBuilder,
->;
-
-impl From<&Record> for GenericRecordEmbl {
-    fn from(r: &Record) -> Self {
-        Self {
-            id: r.id.clone(),
-            seq: r.sequence.clone(),
-            seqid: r.id.clone(),
-            start: r.start as u32,
-            end: r.end as u32,
-            strand: r.strand,
-            source: r.source_map.clone(),
-            cds: r.cds.clone(),
-            seq_features: r.seq_features.clone(),
-        }
-    }
 }
 
 #[allow(dead_code)]
