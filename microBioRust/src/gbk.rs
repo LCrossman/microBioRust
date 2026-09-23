@@ -605,36 +605,22 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                         Option<i8>,
                         Option<u8>,
                     ) = (None, None, None, None);
-                    for value in val {
-                        //println!("this is key {:?} value {:?}", &key, &value);
-                        match value {
-                            FeatureAttributes::Start { value } => {
-                                a = match value {
-                                    RangeValue::Exact(v) => Some(*v),
-                                    RangeValue::LessThan(v) => Some(*v), // Assign the value even if it's <value
-                                    RangeValue::GreaterThan(v) => Some(*v), //Assign the value even it's > value
-                                }
-                            }
-                            FeatureAttributes::Stop { value } => {
-                                b = match value {
-                                    RangeValue::Exact(v) => Some(*v),
-                                    RangeValue::LessThan(v) => Some(*v), // Assign the value even if it's <value
-                                    RangeValue::GreaterThan(v) => Some(*v), //Assign the value even if it's > value
-                                }
-                            }
-                            FeatureAttributes::Strand { value } => {
-                                c = match value {
-                                    value => Some(*value),
-                                }
-                            }
-                            FeatureAttributes::CodonStart { value } => {
-                                d = match value {
-                                    value => Some(*value),
-                                }
-                            }
-                            _ => (),
-                        }
-                    }
+                    //for value in val {
+                    //println!("this is key {:?} value {:?}", &key, &value);
+                    a = match &val.start {
+                        Some(RangeValue::Exact(v)) => Some(*v),
+                        Some(RangeValue::LessThan(v)) => Some(*v), // Assign the value even if it's <value
+                        Some(RangeValue::GreaterThan(v)) => Some(*v), //Assign the value even it's > value
+                        None => None,
+                    };
+                    b = match &val.stop {
+                        Some(RangeValue::Exact(v)) => Some(*v),
+                        Some(RangeValue::LessThan(v)) => Some(*v), // Assign the value even if it's <value
+                        Some(RangeValue::GreaterThan(v)) => Some(*v), //Assign the value even if it's > value
+                        None => None,
+                    };
+                    c = val.strand;
+                    d = val.codon_start;
                     let sta = a.map(|o| o as usize).ok_or(anyhow!("No value for start"))?;
                     let sto = b.map(|t| t as usize).ok_or(anyhow!("No value for stop"))? - 1;
                     let stra = c.map(|u| u).ok_or(anyhow!("No value for strand"))?;
@@ -906,14 +892,16 @@ pub fn gbk_write(
             Some(value) => value.to_string(),
             None => "Unknown".to_string(),
         };
-        let type_material = match &record_vec[i].source_map.get_type_material(key) {
-            Some(value) => value.to_string(),
-            None => "Unknown".to_string(),
-        };
-        let db_xref = match &record_vec[i].source_map.get_db_xref(key) {
-            Some(value) => value.to_string(),
-            None => "Unknown".to_string(),
-        };
+        let type_material = record_vec[i]
+            .source_map
+            .get_type_material(key)
+            .map(|s| s.as_str())
+            .unwrap_or("Unknown");
+        let db_xref = &record_vec[i]
+            .source_map
+            .get_db_xref(key)
+            .map(|s| s.as_str())
+            .unwrap_or("Unknown");
         let source_stop = match &record_vec[i].source_map.get_stop(key) {
             Some(value) => value.get_value(),
             None => {
@@ -940,7 +928,7 @@ pub fn gbk_write(
         writeln!(file, "                     /organism=\"{}\"", &strain)?;
         writeln!(file, "                     /mol_type=\"{}\"", &mol_type)?;
         writeln!(file, "                     /strain=\"{}\"", &strain)?;
-        if type_material != *"Unknown".to_string() {
+        if *type_material != *"Unknown" {
             writeln!(
                 file,
                 "                     /type_material=\"{}\"",

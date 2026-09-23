@@ -2,27 +2,21 @@ use paste::paste;
 ///Shared generic record types to reduce duplication between gbk and embl
 ///Minimal initial introduction: defines generic containers and builders that mirror the existing API where possible
 use serde::Serialize;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt;
-use std::io;
+use std::fmt::Debug;
 
 #[macro_export]
 macro_rules! create_getters {
-    ($struct_name:ident,$attributes:ident, $enum_name:ident,$( $field:ident { value:$type:ty } ),* ) => {
-        impl $struct_name {$(
+    ($struct_name:ident, $attributes:ident, $( $field:ident: $type:ty ),* ) => {
+        impl $struct_name {
+            $(
                 paste! {
-                  pub fn [<get_$field:snake>](&self, key: &str) -> Option<&$type> {
-                      // Access the inner `attributes` BTreeMap on the AttributeBuilder
-                      self.$attributes.attributes.get(key).and_then(|set| {
-                          set.iter().find_map(|attr| {
-                              if let $enum_name::$field { value } = attr {
-                                  Some(value)
-                              } else {
-                                  None
-                              }
-                          })
-                      })
-                  }
+                    pub fn [<get_$field:snake>](&self, key: &str) -> Option<&$type> {
+                        self.$attributes.attributes
+                            .get(key)
+                            .and_then(|attr| attr.$field.as_ref())
+                    }
                 }
             )*
         }
@@ -31,44 +25,44 @@ macro_rules! create_getters {
 
 #[macro_export]
 macro_rules! create_builder {
-    ($builder_name:ident, $attributes:ident,$enum_name:ident, $counter_name:ident,$( $field:ident { value:$type:ty } ),* ) => {
+    ($builder_name:ident, $attributes:ident, $struct_name:ident, $counter_name:ident, $( $field:ident: $type:ty ),* ) => {
         impl $builder_name {
             pub fn new() -> Self {
                 $builder_name {
-                    $attributes: AttributeBuilder::new(),$counter_name: None,
+                    $attributes: AttributeBuilder::new(),
+                    $counter_name: None,
                 }
             }
+
             pub fn set_counter(&mut self, counter: String) -> &mut Self {
                 self.$counter_name = Some(counter);
                 self
             }
-            pub fn insert_to(&mut self, value: $enum_name) {
-                if let Some(counter) = &self.$counter_name {
-                    // Access the inner `attributes` BTreeMap
-                    self.$attributes.attributes
-                        .entry(counter.to_string())
-                        .or_insert_with(HashSet::new)
-                        .insert(value);
-                } else {
-                    panic!("Counter key not set");
-                }
-            }
+
             $(
-              paste! {
-                pub fn [<set_$field:snake>](&mut self, value:$type) -> &mut Self {
-                   self.insert_to($enum_name::$field { value });
-                   self
+                paste! {
+                    pub fn [<set_$field:snake>](&mut self, value: $type) -> &mut Self {
+                        if let Some(counter) = &self.$counter_name.clone() {
+                            self.$attributes.attributes
+                                .entry(counter.to_string())
+                                .or_insert_with($struct_name::default)
+                                .$field = Some(value);
+                        } else {
+                            panic!("Counter key not set");
+                        }
+                        self
+                    }
                 }
-              }
             )*
-            pub fn build(self) -> BTreeMap<String, HashSet<$enum_name>> {
-                // Call build on the underlying AttributeBuilder
+
+            pub fn build(self) -> BTreeMap<String, $struct_name> {
                 self.$attributes.build()
             }
-            pub fn iter_sorted(&'_ self) -> std::collections::btree_map::Iter<'_, String, HashSet<$enum_name>> {
-                // Call iter_sorted on the underlying AttributeBuilder
+
+            pub fn iter_sorted(&'_ self) -> std::collections::btree_map::Iter<'_, String, $struct_name> {
                 self.$attributes.iter_sorted()
             }
+
             pub fn default() -> Self {
                 Self::new()
             }
@@ -77,22 +71,22 @@ macro_rules! create_builder {
 }
 
 //stores the details of the source features in genbank (contigs)
-#[derive(Debug, Serialize, Eq, PartialEq, Hash, Clone)]
-pub enum SourceAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    CultureCollection { value: String },
-    TypeMaterial { value: String },
-    DbXref { value: String },
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct SourceAttributes {
+    pub start: Option<RangeValue>,
+    pub stop: Option<RangeValue>,
+    pub organism: Option<String>,
+    pub mol_type: Option<String>,
+    pub strain: Option<String>,
+    pub culture_collection: Option<String>,
+    pub type_material: Option<String>,
+    pub db_xref: Option<String>,
 }
 
 #[derive(Clone, Serialize, Debug, Default)]
 pub struct SourceAttributeBuilder {
     pub source_attributes: AttributeBuilder<String, SourceAttributes>,
-    pub source_name: Option<String>, // source-level only, not in the generic
+    pub source_name: Option<String>,
 }
 
 #[derive(Clone, Serialize, Debug, Default)]
@@ -110,15 +104,14 @@ pub struct SequenceAttributeBuilder {
 create_getters!(
     SourceAttributeBuilder,
     source_attributes,
-    SourceAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    // CultureCollection { value: String},
-    TypeMaterial { value: String },
-    DbXref { value: String }
+    start: RangeValue,
+    stop: RangeValue,
+    organism: String,
+    mol_type: String,
+    strain: String,
+    culture_collection: String,
+    type_material: String,
+    db_xref: String
 );
 
 create_builder!(
@@ -126,38 +119,36 @@ create_builder!(
     source_attributes,
     SourceAttributes,
     source_name,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Organism { value: String },
-    MolType { value: String },
-    Strain { value: String },
-    // CultureCollection { value: String},
-    TypeMaterial { value: String },
-    DbXref { value: String }
+    start: RangeValue,
+    stop: RangeValue,
+    organism: String,
+    mol_type: String,
+    strain: String,
+    culture_collection: String,
+    type_material: String,
+    db_xref: String
 );
 
 ///attributes for each feature, cds or gene
-#[derive(Debug, Eq, Serialize, Hash, PartialEq, Clone)]
-pub enum FeatureAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 },
-    //   ec_number { value: String }
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct FeatureAttributes {
+    pub start: Option<RangeValue>,
+    pub stop: Option<RangeValue>,
+    pub gene: Option<String>,
+    pub product: Option<String>,
+    pub codon_start: Option<u8>,
+    pub strand: Option<i8>, //   ec_number { value: String }
 }
 
 create_getters!(
     FeatureAttributeBuilder,
     attributes,
-    FeatureAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
+    start: RangeValue,
+    stop: RangeValue,
+    gene: String,
+    product: String,
+    codon_start: u8,
+    strand: i8
 );
 
 create_builder!(
@@ -165,35 +156,34 @@ create_builder!(
     attributes,
     FeatureAttributes,
     locus_tag,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    Gene { value: String },
-    Product { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
+    start: RangeValue,
+    stop: RangeValue,
+    gene: String,
+    product: String,
+    codon_start: u8,
+    strand: i8
 );
 
 ///stores the sequences of the coding sequences (genes) and proteins. Also stores start, stop, codon_start and strand information
-#[derive(Debug, Eq, Serialize, PartialEq, Hash, Clone)]
-pub enum SequenceAttributes {
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 },
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct SequenceAttributes {
+    pub start: Option<RangeValue>,
+    pub stop: Option<RangeValue>,
+    pub sequence_ffn: Option<String>,
+    pub sequence_faa: Option<String>,
+    pub codon_start: Option<u8>,
+    pub strand: Option<i8>,
 }
 
 create_getters!(
     SequenceAttributeBuilder,
     seq_attributes,
-    SequenceAttributes,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
+    start: RangeValue,
+    stop: RangeValue,
+    sequence_ffn: String,
+    sequence_faa: String,
+    codon_start: u8,
+    strand: i8
 );
 
 create_builder!(
@@ -201,12 +191,12 @@ create_builder!(
     seq_attributes,
     SequenceAttributes,
     locus_tag,
-    Start { value: RangeValue },
-    Stop { value: RangeValue },
-    SequenceFfn { value: String },
-    SequenceFaa { value: String },
-    CodonStart { value: u8 },
-    Strand { value: i8 }
+    start: RangeValue,
+    stop: RangeValue,
+    sequence_ffn: String,
+    sequence_faa: String,
+    codon_start: u8,
+    strand: i8
 );
 
 #[derive(Clone, Serialize, Debug, PartialEq, Eq, Hash)]
@@ -214,6 +204,11 @@ pub enum RangeValue {
     Exact(u32),
     LessThan(u32),
     GreaterThan(u32),
+}
+impl Default for RangeValue {
+    fn default() -> Self {
+        RangeValue::Exact(0)
+    }
 }
 
 impl RangeValue {
@@ -244,7 +239,7 @@ pub trait HasStartStopStrand {
 pub struct AttributeBuilder<K, V> {
     pub name: Option<String>,
     pub counter: Option<K>,
-    pub attributes: BTreeMap<K, HashSet<V>>,
+    pub attributes: BTreeMap<K, V>,
 }
 impl<K, V> Default for AttributeBuilder<K, V> {
     fn default() -> Self {
@@ -255,66 +250,136 @@ impl<K, V> Default for AttributeBuilder<K, V> {
         }
     }
 }
+
 impl<K, V> AttributeBuilder<K, V>
 where
     K: Eq + std::hash::Hash + Ord + Clone,
-    V: Eq + std::hash::Hash,
+{
+    pub fn iter_sorted(&self) -> std::collections::btree_map::Iter<'_, K, V> {
+        self.attributes.iter()
+    }
+    pub fn iter(&self) -> std::collections::btree_map::Iter<'_, K, V> {
+        self.attributes.iter()
+    }
+    pub fn iter_mut(&mut self) -> std::collections::btree_map::IterMut<'_, K, V> {
+        self.attributes.iter_mut()
+    }
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.attributes.keys()
+    }
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.attributes.values()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.attributes.is_empty()
+    }
+    pub fn len(&self) -> usize {
+        self.attributes.len()
+    }
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.attributes.contains_key(key)
+    }
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.attributes.get(key)
+    }
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.attributes.get_mut(key)
+    }
+    pub fn first_key_value(&self) -> Option<(&K, &V)> {
+        self.attributes.iter().next()
+    }
+    pub fn build(self) -> BTreeMap<K, V> {
+        self.attributes
+    }
+}
+
+impl<K, V> AttributeBuilder<K, V>
+where
+    K: Eq + std::hash::Hash + Ord + Clone + Debug,
+    V: Default + Debug,
 {
     pub fn new() -> Self {
-        Self {
-            name: None,
-            counter: None,
-            attributes: BTreeMap::new(),
-        }
+        Self::default()
     }
     pub fn set_counter(&mut self, key: K) -> &mut Self {
         self.counter = Some(key);
         self
     }
-    pub fn set_name(&mut self, name: String) {
+    pub fn set_name(&mut self, name: String) -> &mut Self {
         self.name = Some(name);
+        self
     }
     pub fn get_name(&self) -> Option<&String> {
         self.name.as_ref()
     }
+    pub fn entry_or_default(&mut self) -> &mut V {
+        let key = self.counter.clone().expect("Counter key not set");
+        self.attributes.entry(key).or_insert_with(V::default)
+    }
     pub fn add(&mut self, key: K, value: V) {
-        self.attributes
-            .entry(key)
-            .or_insert_with(HashSet::new)
-            .insert(value);
-    }
-    pub fn get_set(&self, key: &K) -> Option<&HashSet<V>> {
-        self.attributes.get(key)
-    }
-    pub fn keys(&self) -> impl Iterator<Item = &K> {
-        self.attributes.keys()
-    }
-    pub fn first_key_value(&self) -> Option<(&K, &HashSet<V>)> {
-        self.attributes.iter().next()
+        if self.attributes.contains_key(&key) {
+            eprintln!(
+                "ERROR: Duplicate key detected: {:?} already exists.\n\
+                 Existing value: {:?}\n\
+                 Attempted duplicate: {:?}\n\
+                 Halting parser, file is invalid, please fix duplicate",
+                key,
+                self.attributes.get(&key).unwrap(),
+                value
+            );
+            std::process::exit(1);
+        }
+        self.attributes.insert(key, value);
     }
     pub fn insert(&mut self, value: V) {
         let key = self.counter.clone().expect("Counter key not set");
-        self.attributes.entry(key).or_default().insert(value);
+        self.add(key, value);
     }
-
-    pub fn iter_sorted(&self) -> std::collections::btree_map::Iter<'_, K, HashSet<V>> {
-        self.attributes.iter()
-    }
-
-    pub fn build(self) -> BTreeMap<K, HashSet<V>> {
-        self.attributes
+    pub fn validate_all<F>(&self, source_file: &str, validator: F)
+    where
+        F: Fn(&K, &V) -> Option<String>,
+    {
+        let mut errors = 0;
+        for (key, value) in &self.attributes {
+            if let Some(msg) = validator(key, value) {
+                eprintln!(
+                    "VALIDATION ERROR in {}: key {:?}: {}",
+                    source_file, key, msg
+                );
+                errors += 1;
+            }
+        }
+        if errors > 0 {
+            eprintln!("Halting: {} validation errors in {}", errors, source_file);
+            std::process::exit(1);
+        }
+        eprintln!(
+            "OK: {} records validated in {}",
+            self.attributes.len(),
+            source_file
+        );
     }
 }
 impl<'a, K, V> IntoIterator for &'a AttributeBuilder<K, V>
 where
     K: Ord + Eq + std::hash::Hash + Clone,
-    V: Eq + std::hash::Hash,
 {
-    type Item = (&'a K, &'a std::collections::HashSet<V>);
-    type IntoIter = std::collections::btree_map::Iter<'a, K, std::collections::HashSet<V>>;
+    type Item = (&'a K, &'a V);
+    type IntoIter = std::collections::btree_map::Iter<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_sorted()
+    }
+}
+impl<'a, K, V> IntoIterator for &'a mut AttributeBuilder<K, V>
+where
+    K: Ord + Eq + std::hash::Hash + Clone,
+{
+    type Item = (&'a K, &'a mut V);
+    type IntoIter = std::collections::btree_map::IterMut<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
