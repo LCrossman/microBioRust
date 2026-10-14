@@ -378,7 +378,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-pub async fn load_instability(path: &str) -> Result<HashMap<String, f64>, anyhow::Error> {
+pub async fn load_instability(path: &str) -> Result<HashMap<(char, char), f64>, anyhow::Error> {
     let file = tokio::fs::File::open(path).await?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
@@ -392,7 +392,8 @@ pub async fn load_instability(path: &str) -> Result<HashMap<String, f64>, anyhow
         if parts.len() != 2 {
             continue;
         }
-        let key = parts[0].trim().to_string();
+        let key_bytes = parts[0].trim().as_bytes();
+        let key = (key_bytes[0] as char, key_bytes[1] as char);
         let val: f64 = parts[1]
             .trim()
             .replace('—', "-") // handle minus dash
@@ -405,11 +406,11 @@ pub async fn load_instability(path: &str) -> Result<HashMap<String, f64>, anyhow
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-pub async fn instability_index(seq: String, weights: &HashMap<String, f64>) -> f64 {
+pub async fn instability_index(seq: String, weights: &HashMap<(char, char), f64>) -> f64 {
     let chars: Vec<char> = seq.chars().collect();
     let mut total = 0.0;
     for window in chars.windows(2) {
-        let pair = format!("{}{}", window[0], window[1]);
+        let pair = (window[0], window[1]);
         if let Some(val) = weights.get(&pair) {
             total += val;
         }
