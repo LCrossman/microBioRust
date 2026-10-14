@@ -383,17 +383,32 @@ pub async fn load_instability(path: &str) -> Result<HashMap<(char, char), f64>, 
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
     let mut weights = HashMap::new();
+    let mut line_num = 0;
     while let Some(line) = lines.next_line().await? {
+        line_num += 1;
+
         let line = line.trim().to_string();
         if line.is_empty() {
             continue;
         }
+
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() != 2 {
-            continue;
+            return Err(anyhow::anyhow!(format!(
+                "line {line_num}: Expected 2 parts, got {}",
+                parts.len()
+            )));
         }
-        let key_bytes = parts[0].trim().as_bytes();
-        let key = (key_bytes[0] as char, key_bytes[1] as char);
+
+        let mut key_chars = parts[0].trim().chars();
+        let (Some(a), Some(b), None) = (key_chars.next(), key_chars.next(), key_chars.next())
+        else {
+            return Err(anyhow::anyhow!(format!(
+                "line: {line_num} Invalid key {:?}",
+                parts[0]
+            )));
+        };
+        let key = (a, b);
         let val: f64 = parts[1]
             .trim()
             .replace('—', "-") // handle minus dash
