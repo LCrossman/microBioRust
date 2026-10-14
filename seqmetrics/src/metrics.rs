@@ -378,21 +378,37 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-pub async fn load_instability(path: &str) -> Result<HashMap<String, f64>, anyhow::Error> {
+pub async fn load_instability(path: &str) -> Result<HashMap<(char, char), f64>, anyhow::Error> {
     let file = tokio::fs::File::open(path).await?;
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
     let mut weights = HashMap::new();
+    let mut line_num = 0;
     while let Some(line) = lines.next_line().await? {
+        line_num += 1;
+
         let line = line.trim().to_string();
         if line.is_empty() {
             continue;
         }
+
         let parts: Vec<&str> = line.split(',').collect();
         if parts.len() != 2 {
-            continue;
+            return Err(anyhow::anyhow!(format!(
+                "line {line_num}: Expected 2 parts, got {}",
+                parts.len()
+            )));
         }
-        let key = parts[0].trim().to_string();
+
+        let mut key_chars = parts[0].trim().chars();
+        let (Some(a), Some(b), None) = (key_chars.next(), key_chars.next(), key_chars.next())
+        else {
+            return Err(anyhow::anyhow!(format!(
+                "line: {line_num} Invalid key {:?}",
+                parts[0]
+            )));
+        };
+        let key = (a, b);
         let val: f64 = parts[1]
             .trim()
             .replace('—', "-") // handle minus dash
@@ -405,11 +421,11 @@ pub async fn load_instability(path: &str) -> Result<HashMap<String, f64>, anyhow
 
 #[allow(non_snake_case)]
 #[allow(dead_code)]
-pub async fn instability_index(seq: String, weights: &HashMap<String, f64>) -> f64 {
+pub async fn instability_index(seq: String, weights: &HashMap<(char, char), f64>) -> f64 {
     let chars: Vec<char> = seq.chars().collect();
     let mut total = 0.0;
     for window in chars.windows(2) {
-        let pair = format!("{}{}", window[0], window[1]);
+        let pair = (window[0], window[1]);
         if let Some(val) = weights.get(&pair) {
             total += val;
         }
