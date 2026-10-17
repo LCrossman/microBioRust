@@ -6,6 +6,12 @@ on:
 
 name: R-CMD-check
 
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
@@ -24,13 +30,15 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust stable
+        run: rustup toolchain install stable
 
       - name: Cache Rust Compilation
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: "microbiorust-r/src/rust -> target"
 
@@ -39,30 +47,31 @@ jobs:
         run: |
           # 1. Copy the sibling crate into the R package so it gets zipped into the tarball
           cp -r seqmetrics microbiorust-r/src/rust/seqmetrics
-          
+
           # 2. Rewrite the path in Cargo.toml to point to this new internal folder
           sed -i.bak 's|path *= *"[^"]*seqmetrics"|path = "./seqmetrics"|g' microbiorust-r/src/rust/Cargo.toml
-          
+
           # 3. Clean up the backup file sed creates
           rm microbiorust-r/src/rust/Cargo.toml.bak
       # --- THE FIX ENDS HERE ---
 
       - name: Set up R
-        uses: r-lib/actions/setup-r@v2
+        uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           r-version: ${{ matrix.config.r }}
           use-public-rspm: true
 
       - name: Install R Dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
+        uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           working-directory: microbiorust-r
           extra-packages: any::rcmdcheck
           needs: check
 
       - name: Run R CMD Check
-        uses: r-lib/actions/check-r-package@v2
+        uses: r-lib/actions/check-r-package@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           working-directory: microbiorust-r
+          error-on: '"error"'
         env:
           _R_CHECK_CRAN_INCOMING_: false
