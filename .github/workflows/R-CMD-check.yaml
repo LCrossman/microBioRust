@@ -72,5 +72,6 @@ jobs:
         uses: r-lib/actions/check-r-package@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           working-directory: microbiorust-r
+          error-on: '"error"'
         env:
           _R_CHECK_CRAN_INCOMING_: false
