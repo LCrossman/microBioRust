@@ -266,8 +266,9 @@
 
 pub use crate::record::RangeValue;
 pub use crate::record::{
-    FeatureAttributeBuilder, FeatureAttributes, Record, RecordRead, Records,
-    SequenceAttributeBuilder, SequenceAttributes, SourceAttributeBuilder, SourceAttributes,
+    FeatureAttributeBuilder, FeatureAttributes, FeatureKind, NonCodingAttributeBuilder,
+    NonCodingAttributes, Record, RecordRead, Records, SequenceAttributeBuilder, SequenceAttributes,
+    SourceAttributeBuilder, SourceAttributes,
 };
 use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
@@ -365,6 +366,14 @@ impl<B: io::BufRead> Reader<B> {
     }
 }
 
+pub fn embl_feature_key(line: &str) -> Option<&str> {
+    let rest = line.strip_prefix("FT   ")?;
+    if rest.starts_with(' ') {
+        return None;
+    } // qualifier or continuation line
+    rest.split_whitespace().next()
+}
+
 ///main embl parser
 impl<B: io::BufRead> RecordRead for Reader<B> {
     #[allow(unused_mut)]
@@ -388,6 +397,7 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
         let mut type_material = String::with_capacity(64);
         let mut theend: u32 = 0;
         let mut thestart: u32 = 0;
+        let mut noncoding_counter: u32 = 0;
         let mut db_xref = String::with_capacity(32);
         //check if there are any more lines, if not return the record as is
         if self.line_buffer.is_empty() {
@@ -400,6 +410,10 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
         'outer: while !self.line_buffer.is_empty() {
             //println!("is line buffer {:?}", &self.line_buffer);
             //collect the header fields
+            let mut nc_segments: Vec<(u32, u32)> = Vec::new();
+            let mut nc_strand: i8 = 0;
+            let mut nc_product: Option<Vec<String>> = Some(Vec::new());
+            let mut nc_joined: bool = false;
             if self.line_buffer.starts_with("ID") {
                 record.rec_clear();
                 let mut header_fields: Vec<&str> = self.line_buffer.split_whitespace().collect();
@@ -443,25 +457,20 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 source_name = format!("source_{}_{}", record.id, source_counter).to_string();
                 thestart += prev_end;
                 theend = end.trim().parse::<u32>()? + prev_end;
-                //println!("so the start and end are {:?} {:?}", &thestart, &theend);
+                println!("so the start and end are {:?} {:?}", &thestart, &theend);
                 loop {
                     self.line_buffer.clear();
-                    self.reader.read_line(&mut self.line_buffer)?;
-                    if self.line_buffer.starts_with("FT   CDS") {
-                        //println!("this source name {:?} start {:?} end {:?} organism {:?} mol_type {:?} strain {:?} type_material {:?} db_xref {:?}", &source_name,&thestart, &theend, &organism, &mol_type, &strain, &type_material, &db_xref);
-                        record
-                            .source_map
-                            .set_counter(source_name.to_string())
-                            .set_start(RangeValue::Exact(thestart))
-                            .set_stop(RangeValue::Exact(theend))
-                            .set_organism(organism.clone())
-                            .set_mol_type(mol_type.clone())
-                            .set_strain(strain.clone())
-                            // culture_collection.clone()
-                            .set_type_material(type_material.clone())
-                            .set_db_xref(db_xref.clone());
-                        continue 'outer;
+                    if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                        break;
                     }
+                    if self.line_buffer.starts_with("FT   CDS")
+                        || embl_feature_key(&self.line_buffer).is_some()
+                        || self.line_buffer.starts_with("SQ   Sequence")
+                        || self.line_buffer.starts_with("//")
+                    {
+                        break;
+                    }
+                    //println!("this source name {:?} start {:?} end {:?} organism {:?} mol_type {:?} strain {:?} type_material {:?} db_xref {:?}", &source_name,&thestart, &theend, &organism, &mol_type, &strain, &type_material, &db_xref);
                     if self.line_buffer.contains("/organism") {
                         let org: Vec<&str> = self.line_buffer.split('\"').collect();
                         organism = org[1].to_string();
@@ -487,6 +496,18 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                         db_xref = db[1].to_string();
                     }
                 }
+                record
+                    .source_map
+                    .set_counter(source_name.to_string())
+                    .set_start(RangeValue::Exact(thestart))
+                    .set_stop(RangeValue::Exact(theend))
+                    .set_organism(organism.clone())
+                    .set_mol_type(mol_type.clone())
+                    .set_strain(strain.clone())
+                    // culture_collection.clone()
+                    .set_type_material(type_material.clone())
+                    .set_db_xref(db_xref.clone());
+                continue 'outer;
             }
             //populate the FeatureAttributes and the coding sequence annotation
             if self.line_buffer.starts_with("FT   CDS") {
@@ -494,7 +515,6 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 let mut enditer: Vec<_> = Vec::new();
                 let mut thestart: u32 = 0;
                 let mut thend: u32 = 0;
-                let mut joined: bool = false;
                 //gather the feature coordinates
                 let joined = self.line_buffer.contains("join");
                 // Use pre-compiled regex from lazy_static for 10-50x performance improvement
@@ -522,7 +542,9 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 //loop to populate the feature attributes, when complete it calls to the outer loop directly to prevent reading a new line into self.line_buffer
                 loop {
                     self.line_buffer.clear();
-                    self.reader.read_line(&mut self.line_buffer)?;
+                    if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                        break;
+                    }
                     if self.line_buffer.contains("/locus_tag=") {
                         let loctag: Vec<&str> = self.line_buffer.split('\"').collect();
                         locus_tag = loctag[1].to_string();
@@ -544,11 +566,9 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                         product = substitute_odd_punctuation(prod[1].to_string())?;
                         //println!("designated product {:?} {:?}", &product, &locus_tag);
                     }
-                    if self.line_buffer.starts_with("FT   CDS")
+                    if embl_feature_key(&self.line_buffer).is_some()
                         || self.line_buffer.starts_with("SQ   Sequence")
-                        || self.line_buffer.starts_with("FT   intron")
-                        || self.line_buffer.starts_with("FT   exon")
-                        || self.line_buffer.starts_with("     misc_feature")
+                        || self.line_buffer.starts_with("//")
                     {
                         if locus_tag.is_empty() {
                             locus_tag = format!("CDS_{}", cds_counter).to_string();
@@ -561,6 +581,7 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                                 record
                                     .cds
                                     .set_counter(loc_tag)
+                                    .set_feature_type(FeatureKind::Cds)
                                     .set_start(RangeValue::Exact(*m))
                                     .set_stop(RangeValue::Exact(enditer[i]))
                                     .set_gene(gene.to_string())
@@ -568,19 +589,19 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                                     .set_codon_start(codon_start)
                                     .set_strand(strand);
                             }
-                            continue 'outer;
                         } else {
                             record
                                 .cds
                                 .set_counter(locus_tag.clone())
+                                .set_feature_type(FeatureKind::Cds)
                                 .set_start(RangeValue::Exact(thestart))
                                 .set_stop(RangeValue::Exact(theend))
                                 .set_gene(gene.to_string())
                                 .set_product(product.to_string())
                                 .set_codon_start(codon_start)
                                 .set_strand(strand);
-                            continue 'outer;
                         }
+                        continue 'outer;
                     }
                 }
             }
@@ -630,12 +651,20 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                     };
                     c = val.strand;
                     d = val.codon_start;
-                    let sta = a.map(|o| o as usize).ok_or(anyhow!("No value for start"))?;
-                    let sto = b.map(|t| t as usize).ok_or(anyhow!("No value for stop"))? - 1;
-                    let stra = c.map(|u| u).ok_or(anyhow!("No value for strand"))?;
+                    let sta = a
+                        .map(|o| o as usize)
+                        .ok_or_else(|| anyhow!("No value for start"))?;
+                    let sto = b
+                        .map(|t| t as usize)
+                        .ok_or_else(|| anyhow!("No value for stop"))?
+                        .checked_sub(1)
+                        .ok_or_else(|| anyhow!("Stop is 0"))?;
+                    let stra = c.ok_or_else(|| anyhow!("No value for strand"))?;
                     let cod = d
-                        .map(|v| v as usize - 1)
-                        .ok_or(anyhow!("No value for strand"))?;
+                        .map(|v| v as usize)
+                        .ok_or_else(|| anyhow!("No value for codon start"))?
+                        .checked_sub(1)
+                        .ok_or_else(|| anyhow!("codon start is 0"))?;
 
                     let star = sta.try_into()?;
                     let stow = sto.try_into()?;
@@ -709,6 +738,86 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 //return the record when completed
                 //println!("record seq features {:?}", &record.seq_features);
                 return Ok(record.to_owned());
+            } else if let Some(key) = embl_feature_key(&self.line_buffer) {
+                let kind = FeatureKind::from_key(key);
+                if kind.is_non_coding() {
+                    //check for contig join
+                    nc_joined = self.line_buffer.contains("join");
+                    nc_segments.clear();
+                    // Use pre-compiled regex from lazy_static for 10-50x performance improvement
+                    //let matches: Vec<&regex::Captures> = LOCATION_REGEX.captures_iter(&self.line_buffer).collect();
+                    for nc_cap in LOCATION_REGEX.captures_iter(&self.line_buffer) {
+                        nc_segments.push((
+                            nc_cap[1]
+                                .parse::<u32>()
+                                .expect("failed to match and parse numberical start"),
+                            nc_cap[2]
+                                .parse::<u32>()
+                                .expect("failed to match and parse numerical end"),
+                        ));
+                    }
+                    nc_strand = if self.line_buffer.contains("complement") {
+                        -1
+                    } else {
+                        1
+                    };
+                    let mut nc_product: Option<String> = Some(String::new());
+                    let mut in_location = true;
+                    loop {
+                        self.line_buffer.clear();
+                        if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                            break;
+                        }
+                        if embl_feature_key(&self.line_buffer).is_some()
+                            || self.line_buffer.starts_with("SQ   Sequence")
+                            || self.line_buffer.starts_with("//")
+                        {
+                            break;
+                        }
+                        if in_location
+                            && self
+                                .line_buffer
+                                .trim_start_matches("FT")
+                                .trim_start()
+                                .starts_with('/')
+                        {
+                            in_location = false;
+                        }
+                        if in_location {
+                            for c in LOCATION_REGEX.captures_iter(&self.line_buffer) {
+                                nc_segments.push((
+                                    c[1].parse().expect("failed to parse numerical start"),
+                                    c[2].parse().expect("failed to parse numerical end"),
+                                ));
+                            }
+                        } else if self.line_buffer.contains("/product")
+                            && let Some(nc_prod) = self.line_buffer.split('\"').nth(1)
+                        {
+                            nc_product = Some(substitute_odd_punctuation(nc_prod.to_string())?);
+                        }
+                    }
+                    if !nc_segments.is_empty() {
+                        noncoding_counter += 1;
+                        let nc_base = format!("nc_{}", &noncoding_counter);
+                        for (i, &(nc_start, nc_stop)) in nc_segments.iter().enumerate() {
+                            let nc_key = if nc_joined {
+                                format!("{}_{}", nc_base, i)
+                            } else {
+                                nc_base.clone()
+                            };
+                            let nc_prods = nc_product.clone().expect("product line issue");
+                            record
+                                .nc_features
+                                .set_counter(nc_key.to_string())
+                                .set_feature_type(kind.clone())
+                                .set_start(RangeValue::Exact(nc_start))
+                                .set_stop(RangeValue::Exact(nc_stop))
+                                .set_strand(nc_strand)
+                                .set_product(nc_prods);
+                        }
+                    }
+                    continue 'outer;
+                }
             }
             //clear the line buffer and read the next to continue back to the outer loop
             self.line_buffer.clear();

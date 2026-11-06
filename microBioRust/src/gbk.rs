@@ -278,8 +278,9 @@
 //!
 
 pub use crate::record::{
-    FeatureAttributeBuilder, FeatureAttributes, RangeValue, Record, RecordRead, Records,
-    SequenceAttributeBuilder, SequenceAttributes, SourceAttributeBuilder, SourceAttributes,
+    FeatureAttributeBuilder, FeatureAttributes, FeatureKind, NonCodingAttributeBuilder,
+    NonCodingAttributes, RangeValue, Record, RecordRead, Records, SequenceAttributeBuilder,
+    SequenceAttributes, SourceAttributeBuilder, SourceAttributes, feature_key,
 };
 use anyhow::{Context, anyhow};
 use bio::alphabets::dna::revcomp;
@@ -400,6 +401,7 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
         let mut type_material = String::with_capacity(64);
         let mut theend: u32 = 0;
         let mut thestart: u32 = 0;
+        let mut noncoding_counter: u32 = 0;
         let mut db_xref = String::with_capacity(32);
         //check if there are any more lines, if not return the record as is
         if self.line_buffer.is_empty() {
@@ -412,6 +414,10 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
         'outer: while !self.line_buffer.is_empty() {
             //println!("is line buffer {:?}", &self.line_buffer);
             //collect the header fields
+            let mut nc_segments: Vec<(u32, u32)> = Vec::new();
+            let mut nc_strand: i8 = 0;
+            let mut nc_product: Option<Vec<String>> = Some(Vec::new());
+            let mut nc_joined: bool = false;
             if self.line_buffer.starts_with("LOCUS") {
                 record.rec_clear();
                 let mut header_fields: Vec<&str> = self.line_buffer.split_whitespace().collect();
@@ -444,22 +450,17 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 //println!("so the start and end are {:?} {:?}", &thestart, &theend);
                 loop {
                     self.line_buffer.clear();
-                    self.reader.read_line(&mut self.line_buffer)?;
-                    if self.line_buffer.starts_with("     CDS") {
-                        //println!("this source name {:?} start {:?} end {:?} organism {:?} mol_type {:?} strain {:?} type_material {:?} db_xref {:?}", &source_name,&thestart, &theend, &organism, &mol_type, &strain, &type_material, &db_xref);
-                        record
-                            .source_map
-                            .set_counter(source_name.to_string())
-                            .set_start(RangeValue::Exact(thestart))
-                            .set_stop(RangeValue::Exact(theend))
-                            .set_organism(organism.clone())
-                            .set_mol_type(mol_type.clone())
-                            .set_strain(strain.clone())
-                            // culture_collection.clone()
-                            .set_type_material(type_material.clone())
-                            .set_db_xref(db_xref.clone());
-                        continue 'outer;
+                    if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                        break;
                     }
+                    if self.line_buffer.starts_with("     CDS")
+                        || feature_key(&self.line_buffer).is_some()
+                        || self.line_buffer.starts_with("ORIGIN")
+                        || self.line_buffer.starts_with("//")
+                    {
+                        break;
+                    }
+                    //println!("this source name {:?} start {:?} end {:?} organism {:?} mol_type {:?} strain {:?} type_material {:?} db_xref {:?}", &source_name,&thestart, &theend, &organism, &mol_type, &strain, &type_material, &db_xref);
                     if self.line_buffer.contains("/organism") {
                         let org: Vec<&str> = self.line_buffer.split('\"').collect();
                         organism = org[1].to_string();
@@ -485,6 +486,18 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                         db_xref = db[1].to_string();
                     }
                 }
+                record
+                    .source_map
+                    .set_counter(source_name.to_string())
+                    .set_start(RangeValue::Exact(thestart))
+                    .set_stop(RangeValue::Exact(theend))
+                    .set_organism(organism.clone())
+                    .set_mol_type(mol_type.clone())
+                    .set_strain(strain.clone())
+                    // culture_collection.clone()
+                    .set_type_material(type_material.clone())
+                    .set_db_xref(db_xref.clone());
+                continue 'outer;
             }
             //populate the FeatureAttributes and the coding sequence annotation
             if self.line_buffer.starts_with("     CDS") {
@@ -493,6 +506,7 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 let mut thestart: u32 = 0;
                 let mut thend: u32 = 0;
                 let mut joined: bool = false;
+                let feature_type: FeatureKind = FeatureKind::Cds;
                 //gather the feature coordinates
                 let joined = self.line_buffer.contains("join");
                 // Use pre-compiled regex from lazy_static for 10-50x performance improvement
@@ -520,7 +534,9 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 //loop to populate the feature attributes, when complete it calls to the outer loop directly to prevent reading a new line into self.line_buffer
                 loop {
                     self.line_buffer.clear();
-                    self.reader.read_line(&mut self.line_buffer)?;
+                    if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                        break;
+                    }
                     if self.line_buffer.contains("/locus_tag=") {
                         let loctag: Vec<&str> = self.line_buffer.split('\"').collect();
                         locus_tag = loctag[1].to_string();
@@ -542,10 +558,9 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                         product = substitute_odd_punctuation(prod[1].to_string())?;
                         //println!("designated product {:?} {:?}", &product, &locus_tag);
                     }
-                    if self.line_buffer.starts_with("     CDS")
+                    if feature_key(&self.line_buffer).is_some()
                         || self.line_buffer.starts_with("ORIGIN")
-                        || self.line_buffer.starts_with("     gene")
-                        || self.line_buffer.starts_with("     misc_feature")
+                        || self.line_buffer.starts_with("//")
                     {
                         if locus_tag.is_empty() {
                             locus_tag = format!("CDS_{}", cds_counter).to_string();
@@ -565,7 +580,6 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                                     .set_codon_start(codon_start)
                                     .set_strand(strand);
                             }
-                            continue 'outer;
                         } else {
                             record
                                 .cds
@@ -575,9 +589,10 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                                 .set_gene(gene.to_string())
                                 .set_product(product.to_string())
                                 .set_codon_start(codon_start)
-                                .set_strand(strand);
-                            continue 'outer;
+                                .set_strand(strand)
+                                .set_feature_type(feature_type);
                         }
+                        continue 'outer;
                     }
                 }
             }
@@ -586,7 +601,9 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 let mut sequences = String::new();
                 let result_seq = loop {
                     self.line_buffer.clear();
-                    self.reader.read_line(&mut self.line_buffer)?;
+                    if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                        break sequences;
+                    }
                     if self.line_buffer.starts_with("//") {
                         break sequences;
                     } else {
@@ -689,11 +706,111 @@ impl<B: io::BufRead> RecordRead for Reader<B> {
                 }
                 //return the record when completed
                 return Ok(record.to_owned());
+            } else if let Some(key) = feature_key(&self.line_buffer) {
+                // Completely ignore "gene" features to prevent redundant data
+                if key == "gene" {
+                    loop {
+                        self.line_buffer.clear();
+                        // Catch EOF
+                        if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                            break 'outer;
+                        }
+                        //check for a CONTIG join line
+                        if self.line_buffer.starts_with("CONTIG") {
+                            continue;
+                        }
+                        // If we hit the next feature, ORIGIN, or end of record, break out
+                        // and let the 'outer loop process this new line.
+                        if feature_key(&self.line_buffer).is_some()
+                            || self.line_buffer.starts_with("ORIGIN")
+                            || self.line_buffer.starts_with("//")
+                        {
+                            continue 'outer;
+                        }
+                    }
+                }
+                let kind = FeatureKind::from_key(key);
+                if kind.is_non_coding() {
+                    //check for a gene join
+                    nc_joined = self.line_buffer.contains("join");
+                    nc_segments.clear();
+                    // Use pre-compiled regex from lazy_static for 10-50x performance improvement
+                    //let matches: Vec<&regex::Captures> = LOCATION_REGEX.captures_iter(&self.line_buffer).collect();
+                    for nc_cap in LOCATION_REGEX.captures_iter(&self.line_buffer) {
+                        nc_segments.push((
+                            nc_cap[1]
+                                .parse::<u32>()
+                                .expect("failed to match and parse numberical start"),
+                            nc_cap[2]
+                                .parse::<u32>()
+                                .expect("failed to match and parse numerical end"),
+                        ));
+                    }
+                    nc_strand = if self.line_buffer.contains("complement") {
+                        -1
+                    } else {
+                        1
+                    };
+                    let mut nc_product: Option<String> = Some(String::new());
+                    let mut in_location = true;
+                    loop {
+                        self.line_buffer.clear();
+                        if self.reader.read_line(&mut self.line_buffer)? == 0 {
+                            break;
+                        }
+                        //check for a CONTIG join line and ignore
+                        if self.line_buffer.starts_with("CONTIG") {
+                            continue;
+                        }
+                        if feature_key(&self.line_buffer).is_some()
+                            || self.line_buffer.starts_with("ORIGIN")
+                            || self.line_buffer.starts_with("//")
+                        {
+                            break;
+                        }
+                        if in_location && self.line_buffer.trim_start().starts_with('/') {
+                            in_location = false; // the qualifiers have started
+                        }
+                        if in_location {
+                            for c in LOCATION_REGEX.captures_iter(&self.line_buffer) {
+                                nc_segments.push((
+                                    c[1].parse().expect("failed to parse numerical start"),
+                                    c[2].parse().expect("failed to parse numerical end"),
+                                ));
+                            }
+                        } else if self.line_buffer.contains("/product")
+                            && let Some(nc_prod) = self.line_buffer.split('\"').nth(1)
+                        {
+                            nc_product = Some(substitute_odd_punctuation(nc_prod.to_string())?);
+                        }
+                    }
+                    if !nc_segments.is_empty() {
+                        noncoding_counter += 1;
+                        let nc_base = format!("nc_{}", &noncoding_counter);
+                        for (i, &(nc_start, nc_stop)) in nc_segments.iter().enumerate() {
+                            let nc_key = if nc_joined {
+                                format!("{}_{}", nc_base, i)
+                            } else {
+                                nc_base.clone()
+                            };
+                            let nc_prods = nc_product.clone().expect("product line issue");
+                            record
+                                .nc_features
+                                .set_counter(nc_key.to_string())
+                                .set_start(RangeValue::Exact(nc_start))
+                                .set_stop(RangeValue::Exact(nc_stop))
+                                .set_strand(nc_strand)
+                                .set_product(nc_prods);
+                        }
+                    }
+                    continue 'outer;
+                }
             }
             //clear the line buffer and read the next to continue back to the outer loop
             self.line_buffer.clear();
             self.reader.read_line(&mut self.line_buffer)?;
         }
+        //eprintln!("{:?}", &self.line_buffer[..self.line_buffer.len().min(80)]);
         Ok(record.to_owned())
     }
 }
@@ -1293,6 +1410,7 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{BufReader, Cursor};
     #[test]
     #[allow(unused_mut)]
     #[allow(unused_variables)]
@@ -1303,6 +1421,93 @@ mod tests {
         let content = std::fs::read_to_string("tests/K12_ribo.gbk").expect("error reading file");
         assert!(content.contains("LOCUS"));
         assert!(content.len() > 0);
+    }
+    #[test]
+    fn test_parse_joined_cds() {
+        // Mock GenBank file with a joined CDS feature
+        let gbk_data = vec![
+            "LOCUS       TEST_JOIN                 15 bp    DNA     linear   BCT 01-JAN-2024",
+            "FEATURES             Location/Qualifiers",
+            "     source          1..15",
+            "                     /organism=\"Test org\"",
+            "     CDS             join(1..3,10..12)",
+            "                     /locus_tag=\"joined_gene\"",
+            "                     /gene=\"joined_gene\"",
+            "                     /product=\"joined product\"",
+            "ORIGIN",
+            "        1 atgcccatg tagccc",
+            "//",
+        ]
+        .join("\n");
+        println!("--- Mock GBK Data Fed to Parser ---\n{}", gbk_data);
+        let cursor = Cursor::new(gbk_data);
+        let buf_reader = BufReader::new(cursor);
+
+        let mut reader = Reader {
+            reader: buf_reader,
+            line_buffer: String::new(),
+        };
+
+        let mut record = Record::default();
+        let result = reader.read(&mut record);
+
+        assert!(result.is_ok(), "Failed to parse joined CDS record");
+        let record = result.unwrap();
+        println!("--- Extracted DNA Sequence ---");
+        println!("Raw Sequence: '{}'", record.sequence);
+        println!("Sequence Length: {}", record.sequence.len());
+        // The sequence is 15 bases long
+        assert_eq!(record.sequence.len(), 15);
+        println!("\n--- Extracted CDS Feature Segments ---");
+        println!("\n--- Found CDS Keys ---");
+        for key in record.cds.attributes.keys() {
+            println!("Found key: '{}'", key);
+        }
+        // Access via the public .attributes map
+        let segment_0 = record
+            .cds
+            .attributes
+            .get(&"joined_gene_0".to_string())
+            .expect("Missing first join segment");
+        println!(
+            "Segment 0 -> Start: {:?}, Stop: {:?}, Gene: {:?}",
+            segment_0.start, segment_0.stop, segment_0.gene
+        );
+        let segment_1 = record
+            .cds
+            .attributes
+            .get(&"joined_gene_1".to_string())
+            .expect("Missing second join segment");
+        println!(
+            "Segment 1 -> Start: {:?}, Stop: {:?}, Gene: {:?}",
+            segment_1.start, segment_1.stop, segment_1.gene
+        );
+        // Verify coordinates (1-based exact coordinates)
+        assert_eq!(segment_0.start, Some(RangeValue::Exact(1)));
+        assert_eq!(segment_0.stop, Some(RangeValue::Exact(3)));
+        assert_eq!(segment_0.gene, Some("joined_gene".to_string()));
+        println!("\n--- Sliced Sequence Attributes (FFN) ---");
+
+        assert_eq!(segment_1.start, Some(RangeValue::Exact(10)));
+        assert_eq!(segment_1.stop, Some(RangeValue::Exact(12)));
+        assert_eq!(segment_1.gene, Some("joined_gene".to_string()));
+
+        // Check if Sequence Attributes were populated for these segments
+        let seq_attr_0 = record
+            .seq_features
+            .seq_attributes
+            .get(&"joined_gene_0".to_string())
+            .expect("Missing seq feature 0");
+        println!("Seq Attr 0 (1..3) -> FFN: {:?}", seq_attr_0.sequence_ffn);
+        let seq_attr_1 = record
+            .seq_features
+            .seq_attributes
+            .get(&"joined_gene_1".to_string())
+            .expect("Missing seq feature 1");
+        println!("Seq Attr 1 (10..12) -> FFN: {:?}", seq_attr_1.sequence_ffn);
+        // Sequence strings are 0-based in seq_features based on your ORIGIN slicing logic
+        assert_eq!(seq_attr_0.sequence_ffn, Some("at".to_string())); // 1..3
+        assert_eq!(seq_attr_1.sequence_ffn, Some("ta".to_string())); // 7..9
     }
     #[test]
     #[allow(unused_mut)]

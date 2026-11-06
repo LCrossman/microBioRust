@@ -45,7 +45,7 @@ macro_rules! create_builder {
                         if let Some(counter) = &self.$counter_name.clone() {
                             self.$attributes.attributes
                                 .entry(counter.to_string())
-                                .or_insert_with($struct_name::default)
+                                .or_default()
                                 .$field = Some(value);
                         } else {
                             panic!("Counter key not set");
@@ -61,10 +61,6 @@ macro_rules! create_builder {
 
             pub fn iter_sorted(&'_ self) -> std::collections::btree_map::Iter<'_, String, $struct_name> {
                 self.$attributes.iter_sorted()
-            }
-
-            pub fn default() -> Self {
-                Self::new()
             }
         }
     };
@@ -129,25 +125,140 @@ create_builder!(
     db_xref: String
 );
 
-///attributes for each feature, cds or gene
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+pub struct TranslTable(u8);
+impl TranslTable {
+    pub const STANDARD: Self = Self(1);
+    pub const BACTERIAL: Self = Self(11);
+    //check NCBI table for strict validation
+    pub fn new(id: u8) -> Option<Self> {
+        (1..=33).contains(&id).then_some(Self(id))
+    }
+    pub fn get(self) -> u8 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, Default)]
+pub enum FeatureKind {
+    Gene,
+    Cds,
+    Rrna,
+    Trna,
+    Tmrna,
+    Ncrna,
+    MiscRna,
+    Regulatory,
+    RepeatRegion,
+    MobileElement,
+    #[default]
+    MiscFeature,
+}
+impl FeatureKind {
+    pub fn from_key(key: &str) -> Self {
+        match key {
+            "gene" => Self::Gene,
+            "CDS" => Self::Cds,
+            "rRNA" => Self::Rrna,
+            "tRNA" => Self::Trna,
+            "tmRNA" => Self::Tmrna,
+            "ncRNA" => Self::Ncrna,
+            "misc_RNA" => Self::MiscRna,
+            "regulatory" => Self::Regulatory,
+            "repeat_region" => Self::RepeatRegion,
+            "mobile_element" => Self::MobileElement,
+            "misc_feature" => Self::MiscFeature,
+            _ => Self::MiscFeature,
+        }
+    }
+}
+impl FeatureKind {
+    pub fn is_non_coding(&self) -> bool {
+        matches!(
+            self,
+            Self::Rrna
+                | Self::Trna
+                | Self::Tmrna
+                | Self::Ncrna
+                | Self::MiscRna
+                | Self::Regulatory
+                | Self::RepeatRegion
+                | Self::MobileElement
+                | Self::MiscFeature
+        )
+    }
+}
+
+///the feature key checks if line is a feature header, with five spaces, then a key
+pub fn feature_key(line: &str) -> Option<&str> {
+    let rest = line.strip_prefix("     ")?;
+    if rest.starts_with(' ') {
+        return None;
+    }
+    rest.split_whitespace().next()
+}
+
+///attributes for the noncoding features
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct NonCodingAttributes {
+    pub feature_type: Option<FeatureKind>,
+    pub start: Option<RangeValue>,
+    pub stop: Option<RangeValue>,
+    pub product: Option<String>,
+    pub strand: Option<i8>,
+}
+
+create_getters!(
+    NonCodingAttributeBuilder,
+    noncoding_attributes,
+    feature_type: FeatureKind,
+    start: RangeValue,
+    stop: RangeValue,
+    product: String,
+    strand: i8
+);
+
+#[derive(Clone, Serialize, Debug, Default)]
+pub struct NonCodingAttributeBuilder {
+    pub noncoding_attributes: AttributeBuilder<String, NonCodingAttributes>,
+    pub feature_id: Option<String>,
+}
+
+create_builder!(
+    NonCodingAttributeBuilder,
+    noncoding_attributes,
+    NonCodingAttributes,
+    feature_id,
+    feature_type: FeatureKind,
+    start: RangeValue,
+    stop: RangeValue,
+    product: String,
+    strand: i8
+);
+
+///attributes for each feature, cds
 #[derive(Debug, Serialize, Clone, Default)]
 pub struct FeatureAttributes {
+    pub feature_type: Option<FeatureKind>,
     pub start: Option<RangeValue>,
     pub stop: Option<RangeValue>,
     pub gene: Option<String>,
     pub product: Option<String>,
     pub codon_start: Option<u8>,
+    pub transl_table: Option<TranslTable>,
     pub strand: Option<i8>, //   ec_number { value: String }
 }
 
 create_getters!(
     FeatureAttributeBuilder,
     attributes,
+    feature_type: FeatureKind,
     start: RangeValue,
     stop: RangeValue,
     gene: String,
     product: String,
     codon_start: u8,
+    transl_table: TranslTable,
     strand: i8
 );
 
@@ -160,7 +271,9 @@ create_builder!(
     stop: RangeValue,
     gene: String,
     product: String,
+    feature_type: FeatureKind,
     codon_start: u8,
+    transl_table: TranslTable,
     strand: i8
 );
 
@@ -314,7 +427,7 @@ where
     }
     pub fn entry_or_default(&mut self) -> &mut V {
         let key = self.counter.clone().expect("Counter key not set");
-        self.attributes.entry(key).or_insert_with(V::default)
+        self.attributes.entry(key).or_default()
     }
     pub fn add(&mut self, key: K, value: V) {
         if self.attributes.contains_key(&key) {
@@ -393,6 +506,7 @@ pub struct Record {
     pub end: usize,
     pub strand: i32,
     pub source_map: SourceAttributeBuilder,
+    pub nc_features: NonCodingAttributeBuilder,
     pub cds: FeatureAttributeBuilder,
     pub seq_features: SequenceAttributeBuilder,
 }
@@ -408,6 +522,7 @@ impl Record {
             end: 0,
             strand: 0,
             source_map: SourceAttributeBuilder::new(),
+            nc_features: NonCodingAttributeBuilder::new(),
             cds: FeatureAttributeBuilder::new(),
             seq_features: SequenceAttributeBuilder::new(),
         }
@@ -445,6 +560,9 @@ impl Record {
     pub fn source_map(&mut self) -> SourceAttributeBuilder {
         self.source_map.clone()
     }
+    pub fn nc_features(&mut self) -> NonCodingAttributeBuilder {
+        self.nc_features.clone()
+    }
     pub fn seq_features(&mut self) -> SequenceAttributeBuilder {
         self.seq_features.clone()
     }
@@ -456,6 +574,7 @@ impl Record {
         self.end = 0;
         self.strand = 0;
         self.source_map = SourceAttributeBuilder::new();
+        self.nc_features = NonCodingAttributeBuilder::new();
         self.cds = FeatureAttributeBuilder::new();
         self.seq_features = SequenceAttributeBuilder::new();
     }
