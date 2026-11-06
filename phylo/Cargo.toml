@@ -1,0 +1,20 @@
+[package]
+name = "microBioRust-phylo"
+license = "MIT"
+keywords = ["bioinformatics","micro","bio","genomics","sequence-analysis"]
+description = "Microbiology friendly bioinformatics Rust functions"
+categories = ["science::bioinformatics::sequence-analysis", "science::bioinformatics::genomics", "science::bioinformatics","visualization","data-structures"]
+readme = "README.md"
+exclude = [".git",".gitignore"]
+repository = "https://github.com/LCrossman/microBioRust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.wasm-pack.profile.release]
+opt-level = "z"
+
+[dependencies]
+phylo = "6.0.0"
