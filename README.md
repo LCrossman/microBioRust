@@ -1,6 +1,15 @@
 <img src="assets/MICROBIO B.svg#gh-light-mode-only" alt="microBioRust logo light mode" width="200">
 <img src="assets/BIO W.png#gh-dark-mode-only" alt="microBioRust logo dark mode" width="200">
 
+> [!IMPORTANT]
+> **This repository has moved and is no longer maintained here.**
+>
+> Active development for **microbiorust** now takes place in the organization repository:
+> **[https://github.com/<ORG_NAME>/microbiorust](https://github.com/<ORG_NAME>/microbiorust)**
+>
+> Please open all new issues, pull requests, and discussions there.
+
+
 [![Docs](https://img.shields.io/badge/docs-mkdocs-blue.svg)](https://lcrossman.github.io/microBioRust-docs)
 
 [![Crates.io Version](https://img.shields.io/crates/v/microBioRust?style=flat)](https://crates.io/crates/microBioRust)
